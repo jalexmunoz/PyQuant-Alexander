@@ -4,27 +4,18 @@
 import math
 import numpy as np
 import pandas as pd
-
+from trades import compute_trade_analysis
 
 def simple_long_only_backtest(
     df: pd.DataFrame,
     price_col: str = "close",
     position_col: str = "position",
     periods_per_year: int = 365,
-    train_frac: float | None = 0.7,
+    train_frac: float | None = 0.7,  # <<< ESTA LÍNEA ES LA CLAVE
 ) -> tuple[pd.DataFrame, dict]:
     """
     Backtest long-only simple usando log-returns como estándar.
-
-    - df: DataFrame con columnas de precio y posición.
-    - price_col: columna de precio (por defecto 'close').
-    - position_col: columna con la señal de posición (0/1).
-    - periods_per_year: 365 para cripto diario.
-    - train_frac: fracción opcional para separar train/test por tiempo (ej. 0.7).
-
-    Retorna:
-      - df con columnas añadidas (log_return, strategy_log_ret, equity_curve, etc.)
-      - metrics: dict con métricas full + (opcional) train_*/test_*
+    ... (el resto de tu docstring) ...
     """
     df = df.copy()
 
@@ -79,6 +70,30 @@ def simple_long_only_backtest(
         metrics.update({f"train_{k}": v for k, v in m_train.items()})
         metrics.update({f"test_{k}": v for k, v in m_test.items()})
 
+    # 6) Análisis de trades (Full sample)
+    trade_metrics = compute_trade_analysis(
+        df=df,
+        position_col=position_col,
+        log_ret_col="strategy_log_ret"
+    )
+    metrics.update(trade_metrics)
+
+    # Análisis de trades (Train/Test)
+    if train_frac is not None and 0 < train_frac < 1:
+        trade_metrics_train = compute_trade_analysis(
+            df=df_train,
+            position_col=position_col,
+            log_ret_col="strategy_log_ret"
+        )
+        metrics.update({f"train_{k}": v for k, v in trade_metrics_train.items()})
+        
+        trade_metrics_test = compute_trade_analysis(
+            df=df_test,
+            position_col=position_col,
+            log_ret_col="strategy_log_ret"
+        )
+        metrics.update({f"test_{k}": v for k, v in trade_metrics_test.items()})
+
     return df, metrics
 
 def _max_drawdown(equity_curve: pd.Series) -> float:
@@ -111,6 +126,7 @@ def _compute_metrics_from_logrets(
       - annual_volatility_strategy
       - sharpe_ratio
       - calmar_ratio
+      - sortino_ratio  <-- AÑADIDO
     """
     strategy_log_ret = strategy_log_ret.dropna()
     n = len(strategy_log_ret)
@@ -126,6 +142,7 @@ def _compute_metrics_from_logrets(
             "annual_volatility_strategy": np.nan,
             "sharpe_ratio": np.nan,
             "calmar_ratio": np.nan,
+            "sortino_ratio": np.nan, # <<< NUEVO
         }
 
     eq = equity_curve.dropna()
@@ -171,6 +188,19 @@ def _compute_metrics_from_logrets(
     else:
         calmar = np.nan
 
+    # <<< INICIO BLOQUE NUEVO (Sortino) >>>
+    # Calcular Downside Deviation (volatilidad de retornos negativos)
+    downside_returns = strategy_log_ret.where(strategy_log_ret < 0, 0.0)
+    downside_std = float(downside_returns.std(ddof=0))
+
+    if downside_std > 0:
+        sortino = np.sqrt(periods_per_year) * (daily_mean / downside_std)
+    else:
+        # Si no hay retornos negativos, Sortino es infinito (o NaN)
+        sortino = np.inf if daily_mean > 0 else np.nan
+    # <<< FIN BLOQUE NUEVO (Sortino) >>>
+
+
     return {
         "total_return_strategy": final_eq - 1.0 if not np.isnan(final_eq) else np.nan,
         "total_return_buy_hold": final_bh - 1.0 if not np.isnan(final_bh) else np.nan,
@@ -181,4 +211,5 @@ def _compute_metrics_from_logrets(
         "annual_volatility_strategy": annual_vol,
         "sharpe_ratio": sharpe,
         "calmar_ratio": calmar,
+        "sortino_ratio": sortino, # <<< NUEVO
     }
