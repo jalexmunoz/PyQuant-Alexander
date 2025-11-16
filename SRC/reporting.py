@@ -1,7 +1,12 @@
 # reporting.py
-# Funciones de salida / resumen de regímenes
+# v0.1.0 - Funciones de salida / resumen
+#
+# Historial:
+# v0.1.0 - Añadida print_backtest_metrics()
+# v0.0.x - (Versión inicial)
 
 import pandas as pd
+import numpy as np
 
 def print_current_snapshot(df: pd.DataFrame, label: str = "BTC-USD"):
     """
@@ -59,3 +64,66 @@ def print_regime_summary(df: pd.DataFrame):
         print("\n=== Risk state counts ===")
         print(df["risk_state"].value_counts(dropna=False))
 
+def print_backtest_metrics(metrics: dict):
+    """
+    Imprime un resumen formateado del diccionario de métricas del backtest.
+    """
+    
+    # --- Sección 1: Métricas de Rendimiento (Full Sample) ---
+    print("\n=== Métricas de Rendimiento (Full Sample) ===")
+    
+    # Definir las métricas clave y su formato
+    perf_keys = [
+        ("total_return_strategy", "{: .2%}"),
+        ("total_return_buy_hold", "{: .2%}"),
+        ("cagr_strategy", "{: .2%}"),
+        ("cagr_buy_hold", "{: .2%}"),
+        ("max_drawdown_strategy", "{: .2%}"),
+        ("max_drawdown_buy_hold", "{: .2%}"),
+        ("annual_volatility_strategy", "{: .2%}"),
+        ("sharpe_ratio", "{: .3f}"),
+        ("sortino_ratio", "{: .3f}"),
+        ("calmar_ratio", "{: .3f}"),
+    ]
+
+    for key, fmt in perf_keys:
+        if key in metrics:
+            print(f"{key:28s}: {fmt.format(metrics[key])}")
+
+    # --- Sección 2: Análisis de Trades (Full Sample) ---
+    print("\n=== Análisis de Trades (Full Sample) ===")
+    trade_keys = [
+        ("trades_total_num", "{: .0f}"),
+        ("trades_pct_profitable", "{: .2%}"),
+        ("trades_avg_return", "{: .2%}"),
+        ("trades_avg_win", "{: .2%}"),
+        ("trades_avg_loss", "{: .2%}"),
+        ("trades_profit_factor", "{: .2f}"),
+        ("trades_max_win", "{: .2%}"),
+        ("trades_max_loss", "{: .2%}"),
+    ]
+
+    for key, fmt in trade_keys:
+        if key in metrics:
+            val = metrics[key]
+            # Manejar 'nan' e 'inf' que no se formatean bien como .2%
+            if pd.isna(val) or (isinstance(val, float) and np.isinf(val)):
+                print(f"{key:28s}: {val}")
+            else:
+                print(f"{key:28s}: {fmt.format(val)}")
+
+    # --- Sección 3: Métricas Train/Test ---
+    # Filtra todas las métricas que comienzan con "train_" o "test_"
+    train_metrics = {k: v for k, v in metrics.items() if k.startswith("train_")}
+    test_metrics = {k: v for k, v in metrics.items() if k.startswith("test_")}
+
+    if train_metrics:
+        print("\n=== Métricas (Train) ===")
+        for k, v in train_metrics.items():
+            # Mantenemos el formato simple aquí, ya que hay muchas
+            print(f"{k:28s}: {v: .4f}")
+    
+    if test_metrics:
+        print("\n=== Métricas (Test) ===")
+        for k, v in test_metrics.items():
+            print(f"{k:28s}: {v: .4f}")
