@@ -1,5 +1,8 @@
 # trades.py
-# Funciones para analizar trades individuales de un backtest
+# v0.1.0 - Funciones para analizar trades individuales de un backtest
+#
+# Historial:
+# v0.1.0 - Versión inicial
 
 import pandas as pd
 import numpy as np
