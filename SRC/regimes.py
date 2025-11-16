@@ -88,8 +88,8 @@ def add_vol_regime(
 def add_momentum_regime(
     df: pd.DataFrame,
     rsi_col: str = "RSI_14",
-    bull_thr: float = 60.0,
-    bear_thr: float = 40.0,
+    bull_thr: float = 55.0,
+    bear_thr: float = 45.0,
 ) -> pd.DataFrame:
     """
     Clasifica el momentum usando RSI:
@@ -97,6 +97,9 @@ def add_momentum_regime(
     - bullish: RSI >= bull_thr
     - bearish: RSI <= bear_thr
     - neutral: entre ambos
+
+    Ajustamos los umbrales a 55 / 45 para que haya menos tiempo "neutral"
+    y más tramos claramente alcistas / bajistas.
     """
     df = df.copy()
 
@@ -139,9 +142,15 @@ def add_risk_state(df: pd.DataFrame) -> pd.DataFrame:
     Deriva un estado de riesgo (risk_on / risk_off / neutral) combinando
     tendencia, volatilidad y momentum.
 
-    - risk_on:   uptrend + bullish + vol normal/low
-    - risk_off:  bearish + high_vol
-    - neutral:   resto
+    Nueva lógica (algo más expresiva):
+
+    - risk_off:
+        * high_vol y NO bullish (es decir, high_vol con momentum neutral o bearish), o
+        * tendencia NO uptrend y momentum bearish
+    - risk_on:
+        * uptrend + momentum bullish + vol normal/low
+    - neutral:
+        * resto
     """
     df = df.copy()
 
@@ -149,8 +158,13 @@ def add_risk_state(df: pd.DataFrame) -> pd.DataFrame:
     vol = df.get("vol_regime")
     mom = df.get("momentum_regime")
 
+    # 1) risk_off primero (cualquier condición peligrosa manda a OFF)
+    cond_off_highvol = (vol == "high_vol") & (mom != "bullish")
+    cond_off_bear_trend = (trend != "uptrend") & (mom == "bearish")
+    cond_off = cond_off_highvol | cond_off_bear_trend
+
+    # 2) risk_on en entornos alcistas "sanos"
     cond_on = (trend == "uptrend") & (mom == "bullish") & (vol.isin(["normal", "low_vol"]))
-    cond_off = (mom == "bearish") & (vol == "high_vol")
 
     risk_state = pd.Series("neutral", index=df.index)
     risk_state = risk_state.mask(cond_on, "risk_on")
@@ -162,3 +176,4 @@ def add_risk_state(df: pd.DataFrame) -> pd.DataFrame:
     df["is_risk_neutral"] = ~(cond_on | cond_off)
 
     return df
+
