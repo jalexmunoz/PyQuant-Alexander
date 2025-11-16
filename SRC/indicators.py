@@ -42,3 +42,56 @@ def add_rsi(
     df[col_name] = rsi
 
     return df
+import pandas as pd
+
+
+# ... add_sma y add_rsi ya existen arriba ...
+
+
+def add_atr(
+    df: pd.DataFrame,
+    window: int = 20,
+    high_col: str = "high",
+    low_col: str = "low",
+    close_col: str = "close",
+    col_name: str | None = None,
+) -> pd.DataFrame:
+    """
+    Añade ATR (Average True Range) al DataFrame usando OHLC.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame con columnas high, low y close.
+    window : int, default 20
+        Ventana del ATR.
+    high_col, low_col, close_col : str
+        Nombres de las columnas OHLC.
+    col_name : str | None
+        Nombre de la columna resultante. Si None, usa "ATR_{window}".
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame con una nueva columna de ATR.
+    """
+    if col_name is None:
+        col_name = f"ATR_{window}"
+
+    df = df.copy()
+
+    high = df[high_col]
+    low = df[low_col]
+    close = df[close_col]
+
+    prev_close = close.shift(1)
+
+    tr1 = high - low
+    tr2 = (high - prev_close).abs()
+    tr3 = (low - prev_close).abs()
+
+    true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    atr = true_range.rolling(window=window, min_periods=window).mean()
+
+    df[col_name] = atr
+    return df
