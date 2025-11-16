@@ -1,0 +1,21 @@
+# Entorno virtual
+.venv/
+env/
+venv/
+
+# Compilados de Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Archivos temporales
+*.log
+*.tmp
+*.bak
+
+# Sistema
+.DS_Store
+Thumbs.db
