@@ -1,5 +1,9 @@
 # backtest.py
-# Backtest long-only muy simple para estrategias de posición diaria
+# v0.6.0 - Motor de backtesting simple
+#
+# Historial:
+# v0.6.0 - Añade Sortino Ratio y llamada a análisis de trades
+# v0.5.x - (Versión inicial)
 
 import math
 import numpy as np
