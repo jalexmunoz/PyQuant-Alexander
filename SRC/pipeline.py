@@ -1,10 +1,6 @@
-# pipeline.py
-# Pipeline básico para construir un dataset con indicadores + regímenes
-
 from data_fetcher import get_coingecko_ohlc
 from indicators import add_sma, add_rsi, add_atr
-from regimes import add_basic_regimes
-
+from regimes import add_basic_regimes, add_risk_state
 
 def build_asset_regime_dataset(
     coin_id: str = "bitcoin",
@@ -35,13 +31,14 @@ def build_asset_regime_dataset(
     """
     df = get_coingecko_ohlc(coin_id=coin_id, days=days, vs_currency=vs_currency)
 
-    # Indicadores
+       # Indicadores (OHLC)
+    df = add_sma(df, window=20, price_col="close")     # SMA_20
     df = add_sma(df, window=50, price_col="close")     # SMA_50
-    df = add_sma(df, window=200, price_col="close")    # SMA_200
     df = add_rsi(df, window=14, price_col="close")     # RSI_14
     df = add_atr(df, window=20)                        # ATR_20
 
-    # Regímenes
-    df = add_basic_regimes(df)
+    # Regímenes + estado de riesgo
+    df = add_basic_regimes(df, sma_short_col="SMA_20", sma_long_col="SMA_50")
+    df = add_risk_state(df)
 
     return df

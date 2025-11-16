@@ -117,19 +117,48 @@ def add_momentum_regime(
     return df
 
 
-def add_basic_regimes(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Aplica de una vez:
-    - régimen de tendencia
-    - régimen de volatilidad (si existe ATR_20)
-    - régimen de momentum
-
-    Devuelve el DataFrame enriquecido.
-    """
-    df = add_trend_regime(df)
+def add_basic_regimes(
+    df: pd.DataFrame,
+    sma_short_col: str = "SMA_50",
+    sma_long_col: str = "SMA_200",
+) -> pd.DataFrame:
+    df = add_trend_regime(
+        df,
+        sma_short_col=sma_short_col,
+        sma_long_col=sma_long_col,
+    )
 
     if "ATR_20" in df.columns:
         df = add_vol_regime(df)
 
     df = add_momentum_regime(df)
+    return df
+
+def add_risk_state(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Deriva un estado de riesgo (risk_on / risk_off / neutral) combinando
+    tendencia, volatilidad y momentum.
+
+    - risk_on:   uptrend + bullish + vol normal/low
+    - risk_off:  bearish + high_vol
+    - neutral:   resto
+    """
+    df = df.copy()
+
+    trend = df.get("trend_regime")
+    vol = df.get("vol_regime")
+    mom = df.get("momentum_regime")
+
+    cond_on = (trend == "uptrend") & (mom == "bullish") & (vol.isin(["normal", "low_vol"]))
+    cond_off = (mom == "bearish") & (vol == "high_vol")
+
+    risk_state = pd.Series("neutral", index=df.index)
+    risk_state = risk_state.mask(cond_on, "risk_on")
+    risk_state = risk_state.mask(cond_off, "risk_off")
+
+    df["risk_state"] = risk_state
+    df["is_risk_on"] = cond_on
+    df["is_risk_off"] = cond_off
+    df["is_risk_neutral"] = ~(cond_on | cond_off)
+
     return df
