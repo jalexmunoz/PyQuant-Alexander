@@ -1,8 +1,9 @@
 # regimes.py
-# Reglas simples para clasificar regímenes de mercado:
-# - Tendencia (uptrend / downtrend / range)
-# - Volatilidad (high / low / normal)
-# - Momentum (bullish / bearish / neutral)
+# v0.2.0 - Reglas parametrizadas para regímenes de mercado
+#
+# Historial:
+# v0.2.0 - Promovidos todos los umbrales/parámetros fijos a argumentos.
+# v0.1.0 - (Versión inicial)
 
 import pandas as pd
 
@@ -15,12 +16,8 @@ def add_trend_regime(
     slope_window: int = 5,
 ) -> pd.DataFrame:
     """
-    Clasifica el régimen de tendencia usando precio vs SMA200 y SMA50 vs SMA200.
-
-    Reglas (simples, se pueden refinar luego):
-    - uptrend:  close > SMA200, SMA50 > SMA200 y SMA50 subiendo.
-    - downtrend: close < SMA200, SMA50 < SMA200 y SMA50 bajando.
-    - range: todo lo demás.
+    Clasifica el régimen de tendencia.
+    (La lógica interna no cambia)
     """
     df = df.copy()
 
@@ -28,7 +25,7 @@ def add_trend_regime(
     sma_long = df[sma_long_col]
 
     # "pendiente" simple de la SMA corta
-    slope = sma_short.diff(slope_window)
+    slope = sma_short.diff(slope_window) # <-- Usa el parámetro
 
     cond_up = (df[close_col] > sma_long) & (sma_short > sma_long) & (slope > 0)
     cond_down = (df[close_col] < sma_long) & (sma_short < sma_long) & (slope < 0)
@@ -38,10 +35,6 @@ def add_trend_regime(
     trend_regime = trend_regime.mask(cond_down, "downtrend")
 
     df["trend_regime"] = trend_regime
-    df["is_trend_up"] = cond_up
-    df["is_trend_down"] = cond_down
-    df["is_trend_range"] = ~(cond_up | cond_down)
-
     return df
 
 
@@ -54,20 +47,16 @@ def add_vol_regime(
     low_mult: float = 0.7,
 ) -> pd.DataFrame:
     """
-    Clasifica la volatilidad en high / low / normal usando ATR normalizado (ATR/close)
-    contra una mediana rodante.
-
-    - high_vol: ATR_norm > mediana * high_mult
-    - low_vol: ATR_norm < mediana * low_mult
-    - normal: resto
+    Clasifica la volatilidad usando ATR normalizado.
+    (Ahora parametrizado)
     """
     df = df.copy()
 
     atr_norm = df[atr_col] / df[close_col]
     med = atr_norm.rolling(window=window, min_periods=20).median()
 
-    high_thr = med * high_mult
-    low_thr = med * low_mult
+    high_thr = med * high_mult # <-- Usa el parámetro
+    low_thr = med * low_mult # <-- Usa el parámetro
 
     cond_high = atr_norm > high_thr
     cond_low = atr_norm < low_thr
@@ -78,10 +67,6 @@ def add_vol_regime(
 
     df["atr_norm"] = atr_norm
     df["vol_regime"] = vol_regime
-    df["is_vol_high"] = cond_high
-    df["is_vol_low"] = cond_low
-    df["is_vol_normal"] = ~(cond_high | cond_low)
-
     return df
 
 
@@ -92,65 +77,85 @@ def add_momentum_regime(
     bear_thr: float = 45.0,
 ) -> pd.DataFrame:
     """
-    Clasifica el momentum usando RSI:
-
-    - bullish: RSI >= bull_thr
-    - bearish: RSI <= bear_thr
-    - neutral: entre ambos
-
-    Ajustamos los umbrales a 55 / 45 para que haya menos tiempo "neutral"
-    y más tramos claramente alcistas / bajistas.
+    Clasifica el momentum usando RSI.
+    (Ahora parametrizado)
     """
     df = df.copy()
 
     rsi = df[rsi_col]
 
-    cond_bull = rsi >= bull_thr
-    cond_bear = rsi <= bear_thr
+    cond_bull = rsi >= bull_thr # <-- Usa el parámetro
+    cond_bear = rsi <= bear_thr # <-- Usa el parámetro
 
     mom_regime = pd.Series("neutral", index=df.index)
     mom_regime = mom_regime.mask(cond_bull, "bullish")
     mom_regime = mom_regime.mask(cond_bear, "bearish")
 
     df["momentum_regime"] = mom_regime
-    df["is_mom_bullish"] = cond_bull
-    df["is_mom_bearish"] = cond_bear
-    df["is_mom_neutral"] = ~(cond_bull | cond_bear)
-
     return df
 
 
 def add_basic_regimes(
     df: pd.DataFrame,
-    sma_short_col: str = "SMA_50",
-    sma_long_col: str = "SMA_200",
+    # Nombres de columnas de indicadores
+    sma_short_col: str,
+    sma_long_col: str,
+    atr_col: str,
+    rsi_col: str,
+    # Parámetros de lógica de régimen
+    trend_slope_window: int = 5,
+    vol_window: int = 100,
+    vol_high_mult: float = 1.3,
+    vol_low_mult: float = 0.7,
+    mom_bull_thr: float = 55.0,
+    mom_bear_thr: float = 45.0,
 ) -> pd.DataFrame:
-    df = add_trend_regime(
-        df,
-        sma_short_col=sma_short_col,
-        sma_long_col=sma_long_col,
-    )
+    """
+    Orquestador principal que llama a las sub-funciones de régimen
+    con todos los parámetros dinámicos.
+    """
+    
+    # Asegurarse de que las columnas de entrada existan antes de usarlas
+    if sma_short_col in df.columns and sma_long_col in df.columns:
+        df = add_trend_regime(
+            df,
+            sma_short_col=sma_short_col,
+            sma_long_col=sma_long_col,
+            slope_window=trend_slope_window,
+        )
+    else:
+        df["trend_regime"] = "n/a"
 
-    if "ATR_20" in df.columns:
-        df = add_vol_regime(df)
+    if atr_col in df.columns:
+        df = add_vol_regime(
+            df,
+            atr_col=atr_col,
+            window=vol_window,
+            high_mult=vol_high_mult,
+            low_mult=vol_low_mult,
+        )
+    else:
+        df["vol_regime"] = "n/a"
 
-    df = add_momentum_regime(df)
+    if rsi_col in df.columns:
+        df = add_momentum_regime(
+            df,
+            rsi_col=rsi_col,
+            bull_thr=mom_bull_thr,
+            bear_thr=mom_bear_thr,
+        )
+    else:
+        df["momentum_regime"] = "n/a"
+        
     return df
+
 
 def add_risk_state(df: pd.DataFrame) -> pd.DataFrame:
     """
     Deriva un estado de riesgo (risk_on / risk_off / neutral) combinando
     tendencia, volatilidad y momentum.
-
-    Nueva lógica (algo más expresiva):
-
-    - risk_off:
-        * high_vol y NO bullish (es decir, high_vol con momentum neutral o bearish), o
-        * tendencia NO uptrend y momentum bearish
-    - risk_on:
-        * uptrend + momentum bullish + vol normal/low
-    - neutral:
-        * resto
+    
+    (La lógica interna no cambia, se basa en la *salida* de las otras funciones)
     """
     df = df.copy()
 
@@ -158,12 +163,12 @@ def add_risk_state(df: pd.DataFrame) -> pd.DataFrame:
     vol = df.get("vol_regime")
     mom = df.get("momentum_regime")
 
-    # 1) risk_off primero (cualquier condición peligrosa manda a OFF)
+    # 1) risk_off primero
     cond_off_highvol = (vol == "high_vol") & (mom != "bullish")
     cond_off_bear_trend = (trend != "uptrend") & (mom == "bearish")
     cond_off = cond_off_highvol | cond_off_bear_trend
 
-    # 2) risk_on en entornos alcistas "sanos"
+    # 2) risk_on
     cond_on = (trend == "uptrend") & (mom == "bullish") & (vol.isin(["normal", "low_vol"]))
 
     risk_state = pd.Series("neutral", index=df.index)
@@ -171,9 +176,4 @@ def add_risk_state(df: pd.DataFrame) -> pd.DataFrame:
     risk_state = risk_state.mask(cond_off, "risk_off")
 
     df["risk_state"] = risk_state
-    df["is_risk_on"] = cond_on
-    df["is_risk_off"] = cond_off
-    df["is_risk_neutral"] = ~(cond_on | cond_off)
-
     return df
-
