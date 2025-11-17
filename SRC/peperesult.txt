@@ -1,0 +1,78 @@
+Iniciando barrido de parámetros (Parameter Sweep)...
+Activo: PEPEUSDT (PEPE)
+Probando 56 combinaciones de SMA_Short vs SMA_Long...
+Datos base de PEPEUSDT cargados. (928 filas)
+  Probando combo 1/56: (10, 30)... Hecho.
+  Probando combo 2/56: (10, 35)... Hecho.
+  Probando combo 3/56: (10, 40)... Hecho.
+  Probando combo 4/56: (10, 45)... Hecho.
+  Probando combo 5/56: (10, 50)... Hecho.
+  Probando combo 6/56: (10, 55)... Hecho.
+  Probando combo 7/56: (10, 60)... Hecho.
+  Probando combo 8/56: (12, 30)... Hecho.
+  Probando combo 9/56: (12, 35)... Hecho.
+  Probando combo 10/56: (12, 40)... Hecho.
+  Probando combo 11/56: (12, 45)... Hecho.
+  Probando combo 12/56: (12, 50)... Hecho.
+  Probando combo 13/56: (12, 55)... Hecho.
+  Probando combo 14/56: (12, 60)... Hecho.
+  Probando combo 15/56: (14, 30)... Hecho.
+  Probando combo 16/56: (14, 35)... Hecho.
+  Probando combo 17/56: (14, 40)... Hecho.
+  Probando combo 18/56: (14, 45)... Hecho.
+  Probando combo 19/56: (14, 50)... Hecho.
+  Probando combo 20/56: (14, 55)... Hecho.
+  Probando combo 21/56: (14, 60)... Hecho.
+  Probando combo 22/56: (16, 30)... Hecho.
+  Probando combo 23/56: (16, 35)... Hecho.
+  Probando combo 24/56: (16, 40)... Hecho.
+  Probando combo 25/56: (16, 45)... Hecho.
+  Probando combo 26/56: (16, 50)... Hecho.
+  Probando combo 27/56: (16, 55)... Hecho.
+  Probando combo 28/56: (16, 60)... Hecho.
+  Probando combo 29/56: (18, 30)... Hecho.
+  Probando combo 30/56: (18, 35)... Hecho.
+  Probando combo 31/56: (18, 40)... Hecho.
+  Probando combo 32/56: (18, 45)... Hecho.
+  Probando combo 33/56: (18, 50)... Hecho.
+  Probando combo 34/56: (18, 55)... Hecho.
+  Probando combo 35/56: (18, 60)... Hecho.
+  Probando combo 36/56: (20, 30)... Hecho.
+  Probando combo 37/56: (20, 35)... Hecho.
+  Probando combo 38/56: (20, 40)... Hecho.
+  Probando combo 39/56: (20, 45)... Hecho.
+  Probando combo 40/56: (20, 50)... Hecho.
+  Probando combo 41/56: (20, 55)... Hecho.
+  Probando combo 42/56: (20, 60)... Hecho.
+  Probando combo 43/56: (22, 30)... Hecho.
+  Probando combo 44/56: (22, 35)... Hecho.
+  Probando combo 45/56: (22, 40)... Hecho.
+  Probando combo 46/56: (22, 45)... Hecho.
+  Probando combo 47/56: (22, 50)... Hecho.
+  Probando combo 48/56: (22, 55)... Hecho.
+  Probando combo 49/56: (22, 60)... Hecho.
+  Probando combo 50/56: (24, 30)... Hecho.
+  Probando combo 51/56: (24, 35)... Hecho.
+  Probando combo 52/56: (24, 40)... Hecho.
+  Probando combo 53/56: (24, 45)... Hecho.
+  Probando combo 54/56: (24, 50)... Hecho.
+  Probando combo 55/56: (24, 55)... Hecho.
+  Probando combo 56/56: (24, 60)... Hecho.
+
+
+================================================================================
+Resultados de Optimización para PEPEUSDT (Ordenado por Profit Factor en Test Set)
+================================================================================
+    sma_short  sma_long  test_cagr  test_sharpe  test_profit_factor  test_max_drawdown  test_num_trades  full_cagr  full_profit_factor
+17         14        45     22.467        0.126               1.336             -0.290                6      1.585               7.238
+18         14        50     19.705       -0.018               1.139             -0.325                6      1.489               8.629
+16         14        40     13.862       -0.259               0.885             -0.290                6      1.253               6.529
+15         14        35     15.223       -0.266               0.876             -0.291                6      1.313               6.665
+2          10        40     13.807       -0.086               0.807             -0.265                4      1.250               5.934
+20         14        60     15.172       -0.352               0.793             -0.309                5      1.311               7.299
+19         14        55     17.711       -0.392               0.765             -0.317                5      1.415               8.306
+3          10        45     20.985       -0.101               0.764             -0.269                4      1.535               7.332
+14         14        30     12.411       -0.540               0.685             -0.295                7      1.184               6.177
+23         16        40     13.221       -0.203               0.589             -0.275                4      1.223               8.779
+
+Resultados completos guardados en: sweep_results_PEPE.csv

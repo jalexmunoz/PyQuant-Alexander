@@ -1,0 +1,78 @@
+Iniciando barrido de parámetros (Parameter Sweep)...
+Activo: LINK-USD (chainlink)
+Probando 56 combinaciones de SMA_Short vs SMA_Long...
+Datos base de LINKUSDT cargados. (2498 filas)
+  Probando combo 1/56: (10, 30)... Hecho.
+  Probando combo 2/56: (10, 35)... Hecho.
+  Probando combo 3/56: (10, 40)... Hecho.
+  Probando combo 4/56: (10, 45)... Hecho.
+  Probando combo 5/56: (10, 50)... Hecho.
+  Probando combo 6/56: (10, 55)... Hecho.
+  Probando combo 7/56: (10, 60)... Hecho.
+  Probando combo 8/56: (12, 30)... Hecho.
+  Probando combo 9/56: (12, 35)... Hecho.
+  Probando combo 10/56: (12, 40)... Hecho.
+  Probando combo 11/56: (12, 45)... Hecho.
+  Probando combo 12/56: (12, 50)... Hecho.
+  Probando combo 13/56: (12, 55)... Hecho.
+  Probando combo 14/56: (12, 60)... Hecho.
+  Probando combo 15/56: (14, 30)... Hecho.
+  Probando combo 16/56: (14, 35)... Hecho.
+  Probando combo 17/56: (14, 40)... Hecho.
+  Probando combo 18/56: (14, 45)... Hecho.
+  Probando combo 19/56: (14, 50)... Hecho.
+  Probando combo 20/56: (14, 55)... Hecho.
+  Probando combo 21/56: (14, 60)... Hecho.
+  Probando combo 22/56: (16, 30)... Hecho.
+  Probando combo 23/56: (16, 35)... Hecho.
+  Probando combo 24/56: (16, 40)... Hecho.
+  Probando combo 25/56: (16, 45)... Hecho.
+  Probando combo 26/56: (16, 50)... Hecho.
+  Probando combo 27/56: (16, 55)... Hecho.
+  Probando combo 28/56: (16, 60)... Hecho.
+  Probando combo 29/56: (18, 30)... Hecho.
+  Probando combo 30/56: (18, 35)... Hecho.
+  Probando combo 31/56: (18, 40)... Hecho.
+  Probando combo 32/56: (18, 45)... Hecho.
+  Probando combo 33/56: (18, 50)... Hecho.
+  Probando combo 34/56: (18, 55)... Hecho.
+  Probando combo 35/56: (18, 60)... Hecho.
+  Probando combo 36/56: (20, 30)... Hecho.
+  Probando combo 37/56: (20, 35)... Hecho.
+  Probando combo 38/56: (20, 40)... Hecho.
+  Probando combo 39/56: (20, 45)... Hecho.
+  Probando combo 40/56: (20, 50)... Hecho.
+  Probando combo 41/56: (20, 55)... Hecho.
+  Probando combo 42/56: (20, 60)... Hecho.
+  Probando combo 43/56: (22, 30)... Hecho.
+  Probando combo 44/56: (22, 35)... Hecho.
+  Probando combo 45/56: (22, 40)... Hecho.
+  Probando combo 46/56: (22, 45)... Hecho.
+  Probando combo 47/56: (22, 50)... Hecho.
+  Probando combo 48/56: (22, 55)... Hecho.
+  Probando combo 49/56: (22, 60)... Hecho.
+  Probando combo 50/56: (24, 30)... Hecho.
+  Probando combo 51/56: (24, 35)... Hecho.
+  Probando combo 52/56: (24, 40)... Hecho.
+  Probando combo 53/56: (24, 45)... Hecho.
+  Probando combo 54/56: (24, 50)... Hecho.
+  Probando combo 55/56: (24, 55)... Hecho.
+  Probando combo 56/56: (24, 60)... Hecho.
+
+
+================================================================================
+Resultados de Optimización para LINK-USD (Ordenado por Profit Factor en Test Set)
+================================================================================
+    sma_short  sma_long  test_cagr  test_sharpe  test_profit_factor  test_max_drawdown  test_num_trades  full_cagr  full_profit_factor
+46         22        50      0.702        0.228               1.543             -0.233               21      0.173               1.746
+39         20        50      0.519        0.137               1.348             -0.303               20      0.134               1.639
+35         20        30      0.831        0.094               1.272             -0.334               22      0.199               1.762
+53         24        50      0.700        0.078               1.259             -0.292               20      0.173               1.760
+45         22        45      0.565        0.064               1.217             -0.293               23      0.144               1.627
+36         20        35      1.125        0.050               1.201             -0.376               21      0.254               2.023
+38         20        45      0.747        0.038               1.176             -0.317               21      0.182               1.813
+42         22        30      1.007        0.034               1.164             -0.331               26      0.233               1.832
+50         24        35      1.234        0.018               1.148             -0.309               23      0.273               2.026
+37         20        40      1.274       -0.000               1.124             -0.336               20      0.280               2.150
+
+Resultados completos guardados en: sweep_results_chainlink.csv
