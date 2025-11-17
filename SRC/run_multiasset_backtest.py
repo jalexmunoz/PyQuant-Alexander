@@ -84,6 +84,7 @@ def run_backtest_for_asset(
 
 
 def main():
+    # --- Definición de Activos ---
     assets = [
         {"coin_id": "bitcoin",   "label": "BTC-USD"},
         {"coin_id": "ethereum",  "label": "ETH-USD"},
@@ -94,14 +95,35 @@ def main():
 
     vs_currency = "usd"
 
-    # Por ahora, usamos los mismos parámetros para todos
-    params_to_use = STRATEGY_PARAMS_DEFAULT
+    # --- Definición de Parámetros ---
+    
+    # Estrategia 1: "Default" (la que ya teníamos)
+    # Buena para activos core (BTC, ETH)
+    params_default = STRATEGY_PARAMS_DEFAULT
 
+    # Estrategia 2: "Altcoin Momentum" (Nuestra nueva hipótesis)
+    # SMAs más rápidas (12/26) para altcoins
+    params_altcoin = STRATEGY_PARAMS_DEFAULT.copy()
+    params_altcoin.update({
+        "sma_short": 12,
+        "sma_long": 26,
+    })
+
+    # --- Bucle de Ejecución Dinámico ---
+    
     for a in assets:
+        # Decidimos qué parámetros usar para cada activo
+        if a["coin_id"] in ["bitcoin", "ethereum"]:
+            params_to_use = params_default
+            print(f"\nUsando estrategia 'Default' (20/50) para {a['label']}...")
+        else:
+            params_to_use = params_altcoin
+            print(f"\nUsando estrategia 'Altcoin Momentum' (12/26) para {a['label']}...")
+
         run_backtest_for_asset(
             coin_id=a["coin_id"],
             label=a["label"],
-            params=params_to_use, # <-- Pasamos el dict
+            params=params_to_use, # <-- Pasamos el dict dinámico
             vs_currency=vs_currency,
         )
 
