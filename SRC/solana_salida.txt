@@ -1,0 +1,78 @@
+Iniciando barrido de parámetros (Parameter Sweep)...
+Activo: SOL-USD (solana)
+Probando 56 combinaciones de SMA_Short vs SMA_Long...
+Datos base de SOLUSDT cargados. (1925 filas)
+  Probando combo 1/56: (10, 30)... Hecho.
+  Probando combo 2/56: (10, 35)... Hecho.
+  Probando combo 3/56: (10, 40)... Hecho.
+  Probando combo 4/56: (10, 45)... Hecho.
+  Probando combo 5/56: (10, 50)... Hecho.
+  Probando combo 6/56: (10, 55)... Hecho.
+  Probando combo 7/56: (10, 60)... Hecho.
+  Probando combo 8/56: (12, 30)... Hecho.
+  Probando combo 9/56: (12, 35)... Hecho.
+  Probando combo 10/56: (12, 40)... Hecho.
+  Probando combo 11/56: (12, 45)... Hecho.
+  Probando combo 12/56: (12, 50)... Hecho.
+  Probando combo 13/56: (12, 55)... Hecho.
+  Probando combo 14/56: (12, 60)... Hecho.
+  Probando combo 15/56: (14, 30)... Hecho.
+  Probando combo 16/56: (14, 35)... Hecho.
+  Probando combo 17/56: (14, 40)... Hecho.
+  Probando combo 18/56: (14, 45)... Hecho.
+  Probando combo 19/56: (14, 50)... Hecho.
+  Probando combo 20/56: (14, 55)... Hecho.
+  Probando combo 21/56: (14, 60)... Hecho.
+  Probando combo 22/56: (16, 30)... Hecho.
+  Probando combo 23/56: (16, 35)... Hecho.
+  Probando combo 24/56: (16, 40)... Hecho.
+  Probando combo 25/56: (16, 45)... Hecho.
+  Probando combo 26/56: (16, 50)... Hecho.
+  Probando combo 27/56: (16, 55)... Hecho.
+  Probando combo 28/56: (16, 60)... Hecho.
+  Probando combo 29/56: (18, 30)... Hecho.
+  Probando combo 30/56: (18, 35)... Hecho.
+  Probando combo 31/56: (18, 40)... Hecho.
+  Probando combo 32/56: (18, 45)... Hecho.
+  Probando combo 33/56: (18, 50)... Hecho.
+  Probando combo 34/56: (18, 55)... Hecho.
+  Probando combo 35/56: (18, 60)... Hecho.
+  Probando combo 36/56: (20, 30)... Hecho.
+  Probando combo 37/56: (20, 35)... Hecho.
+  Probando combo 38/56: (20, 40)... Hecho.
+  Probando combo 39/56: (20, 45)... Hecho.
+  Probando combo 40/56: (20, 50)... Hecho.
+  Probando combo 41/56: (20, 55)... Hecho.
+  Probando combo 42/56: (20, 60)... Hecho.
+  Probando combo 43/56: (22, 30)... Hecho.
+  Probando combo 44/56: (22, 35)... Hecho.
+  Probando combo 45/56: (22, 40)... Hecho.
+  Probando combo 46/56: (22, 45)... Hecho.
+  Probando combo 47/56: (22, 50)... Hecho.
+  Probando combo 48/56: (22, 55)... Hecho.
+  Probando combo 49/56: (22, 60)... Hecho.
+  Probando combo 50/56: (24, 30)... Hecho.
+  Probando combo 51/56: (24, 35)... Hecho.
+  Probando combo 52/56: (24, 40)... Hecho.
+  Probando combo 53/56: (24, 45)... Hecho.
+  Probando combo 54/56: (24, 50)... Hecho.
+  Probando combo 55/56: (24, 55)... Hecho.
+  Probando combo 56/56: (24, 60)... Hecho.
+
+
+================================================================================
+Resultados de Optimización para SOL-USD (Ordenado por Profit Factor en Test Set)
+================================================================================
+    sma_short  sma_long  test_cagr  test_sharpe  test_profit_factor  test_max_drawdown  test_num_trades  full_cagr  full_profit_factor
+14         14        30     21.639        1.128               4.596             -0.263               17      1.553               5.723
+22         16        35     23.775        1.016               4.026             -0.231               18      1.623               6.063
+21         16        30     19.579        0.932               3.943             -0.231               18      1.481               5.351
+15         14        35     21.060        1.066               3.605             -0.258               18      1.533               5.591
+28         18        30     19.183        0.565               2.120             -0.231               18      1.466               5.322
+16         14        40     14.433        0.642               2.117             -0.316               19      1.275               4.787
+29         18        35     18.621        0.524               1.968             -0.231               18      1.445               5.344
+17         14        45     11.790        0.525               1.966             -0.316               19      1.150               4.573
+0          10        30     21.697        0.584               1.957             -0.284               19      1.555               5.332
+1          10        35     22.137        0.498               1.764             -0.316               19      1.570               5.587
+
+Resultados completos guardados en: sweep_results_solana.csv

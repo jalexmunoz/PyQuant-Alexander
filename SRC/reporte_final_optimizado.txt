@@ -1,0 +1,329 @@
+Ejecutando Backtests con Parámetros Optimizados por Activo...
+
+Usando SMA(20, 50) para BTC-USD...
+
+################################################################################
+# BTC-USD  (bitcoin) - Backtest (Historial completo)
+################################################################################
+
+=== Métricas de Rendimiento (Full Sample) ===
+total_return_strategy       :  3788.69%
+total_return_buy_hold       :  2121.89%
+cagr_strategy               :  55.79%
+cagr_buy_hold               :  45.58%
+max_drawdown_strategy       : -28.95%
+max_drawdown_buy_hold       : -83.19%
+annual_volatility_strategy  :  32.15%
+sharpe_ratio                :  1.379
+sortino_ratio               :  2.451
+calmar_ratio                :  1.927
+
+=== Análisis de Trades (Full Sample) ===
+trades_total_num            :  86
+trades_pct_profitable       :  43.02%
+trades_avg_return           :  5.47%
+trades_avg_win              :  16.71%
+trades_avg_loss             : -3.01%
+trades_profit_factor        :  4.19
+trades_max_win              :  105.80%
+trades_max_loss             : -8.39%
+
+=== Métricas (Train) ===
+train_total_return_strategy :  17.2073
+train_total_return_buy_hold :  5.2669
+train_cagr_strategy         :  0.6524
+train_cagr_buy_hold         :  0.3739
+train_max_drawdown_strategy : -0.2848
+train_max_drawdown_buy_hold : -0.8319
+train_annual_volatility_strategy:  0.3432
+train_sharpe_ratio          :  1.4634
+train_calmar_ratio          :  2.2905
+train_sortino_ratio         :  2.6239
+train_trades_total_num      :  58.0000
+train_trades_pct_profitable :  0.4828
+train_trades_avg_return     :  0.0645
+train_trades_avg_win        :  0.1688
+train_trades_avg_loss       : -0.0328
+train_trades_profit_factor  :  4.8045
+train_trades_max_win        :  1.0580
+train_trades_max_loss       : -0.0839
+
+=== Métricas (Test) ===
+test_total_return_strategy  :  37.8869
+test_total_return_buy_hold  :  21.2189
+test_cagr_strategy          :  3.3771
+test_cagr_buy_hold          :  2.4926
+test_max_drawdown_strategy  : -0.1745
+test_max_drawdown_buy_hold  : -0.2810
+test_annual_volatility_strategy:  0.2639
+test_sharpe_ratio           :  1.1599
+test_calmar_ratio           :  19.3555
+test_sortino_ratio          :  1.9929
+test_trades_total_num       :  28.0000
+test_trades_pct_profitable  :  0.3214
+test_trades_avg_return      :  0.0344
+test_trades_avg_win         :  0.1618
+test_trades_avg_loss        : -0.0259
+test_trades_profit_factor   :  2.9597
+test_trades_max_win         :  0.4793
+test_trades_max_loss        : -0.0531
+
+Últimas filas (precio, regímenes, posición):
+                close       SMA_20       SMA_50 trend_regime vol_regime momentum_regime risk_state  position  equity_curve
+date                                                                                                                      
+2025-11-08  102312.94  108412.3240  112237.9648    downtrend   high_vol         bearish   risk_off       0.0     38.886863
+2025-11-09  104722.96  108121.8675  112018.7114    downtrend   high_vol         bearish   risk_off       0.0     38.886863
+2025-11-10  106011.13  108007.5405  111834.2882    downtrend   high_vol         neutral   risk_off       0.0     38.886863
+2025-11-11  103058.99  107782.1180  111642.4482    downtrend   high_vol         bearish   risk_off       0.0     38.886863
+2025-11-12  101654.37  107360.9275  111435.5596    downtrend   high_vol         bearish   risk_off       0.0     38.886863
+2025-11-13   99692.02  106795.2840  111163.2600    downtrend   high_vol         bearish   risk_off       0.0     38.886863
+2025-11-14   94594.00  105942.6705  110875.2502    downtrend   high_vol         bearish   risk_off       0.0     38.886863
+2025-11-15   95596.24  104994.5125  110594.3058    downtrend   high_vol         bearish   risk_off       0.0     38.886863
+2025-11-16   94261.44  104002.2020  110286.8176    downtrend   high_vol         bearish   risk_off       0.0     38.886863
+2025-11-17   95209.90  103117.7745  109947.7366    downtrend   high_vol         bearish   risk_off       0.0     38.886863
+
+Usando SMA(20, 50) para ETH-USD...
+
+################################################################################
+# ETH-USD  (ethereum) - Backtest (Historial completo)
+################################################################################
+
+=== Métricas de Rendimiento (Full Sample) ===
+total_return_strategy       :  1021.61%
+total_return_buy_hold       :  943.38%
+cagr_strategy               :  34.01%
+cagr_buy_hold               :  32.84%
+max_drawdown_strategy       : -42.87%
+max_drawdown_buy_hold       : -93.97%
+annual_volatility_strategy  :  40.60%
+sharpe_ratio                :  0.721
+sortino_ratio               :  1.142
+calmar_ratio                :  0.793
+
+=== Análisis de Trades (Full Sample) ===
+trades_total_num            :  84
+trades_pct_profitable       :  33.33%
+trades_avg_return           :  4.15%
+trades_avg_win              :  21.33%
+trades_avg_loss             : -4.44%
+trades_profit_factor        :  2.40
+trades_max_win              :  94.14%
+trades_max_loss             : -15.13%
+
+=== Métricas (Train) ===
+train_total_return_strategy :  5.7580
+train_total_return_buy_hold :  5.0592
+train_cagr_strategy         :  0.3919
+train_cagr_buy_hold         :  0.3659
+train_max_drawdown_strategy : -0.4287
+train_max_drawdown_buy_hold : -0.9397
+train_annual_volatility_strategy:  0.4393
+train_sharpe_ratio          :  0.7527
+train_calmar_ratio          :  0.9142
+train_sortino_ratio         :  1.1748
+train_trades_total_num      :  58.0000
+train_trades_pct_profitable :  0.3276
+train_trades_avg_return     :  0.0489
+train_trades_avg_win        :  0.2463
+train_trades_avg_loss       : -0.0473
+train_trades_profit_factor  :  2.5382
+train_trades_max_win        :  0.9414
+train_trades_max_loss       : -0.1513
+
+=== Métricas (Test) ===
+test_total_return_strategy  :  10.2161
+test_total_return_buy_hold  :  9.4338
+test_cagr_strategy          :  1.6510
+test_cagr_buy_hold          :  1.5749
+test_max_drawdown_strategy  : -0.2010
+test_max_drawdown_buy_hold  : -0.6375
+test_annual_volatility_strategy:  0.3149
+test_sharpe_ratio           :  0.6490
+test_calmar_ratio           :  8.2141
+test_sortino_ratio          :  1.1108
+test_trades_total_num       :  26.0000
+test_trades_pct_profitable  :  0.3462
+test_trades_avg_return      :  0.0250
+test_trades_avg_win         :  0.1435
+test_trades_avg_loss        : -0.0378
+test_trades_profit_factor   :  2.0106
+test_trades_max_win         :  0.3989
+test_trades_max_loss        : -0.0743
+
+Últimas filas (precio, regímenes, posición):
+              close     SMA_20     SMA_50 trend_regime vol_regime momentum_regime risk_state  position  equity_curve
+date                                                                                                                
+2025-11-08  3401.51  3773.2700  4027.6938    downtrend     normal         bearish   risk_off       0.0     11.216127
+2025-11-09  3583.46  3753.4820  4009.7546    downtrend     normal         bearish   risk_off       0.0     11.216127
+2025-11-10  3567.85  3738.2220  3992.2122    downtrend     normal         bearish   risk_off       0.0     11.216127
+2025-11-11  3417.76  3718.8335  3976.5858    downtrend     normal         bearish   risk_off       0.0     11.216127
+2025-11-12  3414.92  3696.7395  3961.5990    downtrend     normal         bearish   risk_off       0.0     11.216127
+2025-11-13  3231.54  3661.5725  3943.1736    downtrend   high_vol         bearish   risk_off       0.0     11.216127
+2025-11-14  3112.40  3619.5015  3927.9344    downtrend   high_vol         bearish   risk_off       0.0     11.216127
+2025-11-15  3167.88  3569.9725  3910.6472    downtrend   high_vol         bearish   risk_off       0.0     11.216127
+2025-11-16  3095.29  3518.7295  3892.1854    downtrend   high_vol         bearish   risk_off       0.0     11.216127
+2025-11-17  3151.00  3477.3195  3872.3622    downtrend     normal         bearish   risk_off       0.0     11.216127
+
+Usando SMA(14, 30) para SOL-USD...
+
+################################################################################
+# SOL-USD  (solana) - Backtest (Historial completo)
+################################################################################
+
+=== Métricas de Rendimiento (Full Sample) ===
+total_return_strategy       :  13880.25%
+total_return_buy_hold       :  4114.04%
+cagr_strategy               :  155.28%
+cagr_buy_hold               :  103.34%
+max_drawdown_strategy       : -51.10%
+max_drawdown_buy_hold       : -96.27%
+annual_volatility_strategy  :  64.60%
+sharpe_ratio                :  1.451
+sortino_ratio               :  2.554
+calmar_ratio                :  3.039
+
+=== Análisis de Trades (Full Sample) ===
+trades_total_num            :  61
+trades_pct_profitable       :  44.26%
+trades_avg_return           :  15.37%
+trades_avg_win              :  42.09%
+trades_avg_loss             : -5.84%
+trades_profit_factor        :  5.72
+trades_max_win              :  365.86%
+trades_max_loss             : -37.50%
+
+=== Métricas (Train) ===
+train_total_return_strategy :  68.2842
+train_total_return_buy_hold :  42.0711
+train_cagr_strategy         :  2.1560
+train_cagr_buy_hold         :  1.7743
+train_max_drawdown_strategy : -0.5110
+train_max_drawdown_buy_hold : -0.9627
+train_annual_volatility_strategy:  0.7278
+train_sharpe_ratio          :  1.5791
+train_calmar_ratio          :  4.2194
+train_sortino_ratio         :  2.7791
+train_trades_total_num      :  44.0000
+train_trades_pct_profitable :  0.3864
+train_trades_avg_return     :  0.1956
+train_trades_avg_win        :  0.6106
+train_trades_avg_loss       : -0.0656
+train_trades_profit_factor  :  5.8589
+train_trades_max_win        :  3.6586
+train_trades_max_loss       : -0.3750
+
+=== Métricas (Test) ===
+test_total_return_strategy  :  138.8025
+test_total_return_buy_hold  :  41.1404
+test_cagr_strategy          :  21.6395
+test_cagr_buy_hold          :  9.6164
+test_max_drawdown_strategy  : -0.2634
+test_max_drawdown_buy_hold  : -0.5977
+test_annual_volatility_strategy:  0.3932
+test_sharpe_ratio           :  1.1275
+test_calmar_ratio           :  82.1544
+test_sortino_ratio          :  1.9964
+test_trades_total_num       :  17.0000
+test_trades_pct_profitable  :  0.5882
+test_trades_avg_return      :  0.0453
+test_trades_avg_win         :  0.0984
+test_trades_avg_loss        : -0.0306
+test_trades_profit_factor   :  4.5956
+test_trades_max_win         :  0.2097
+test_trades_max_loss        : -0.0672
+
+Últimas filas (precio, regímenes, posición):
+             close      SMA_14      SMA_30 trend_regime vol_regime momentum_regime risk_state  position  equity_curve
+date                                                                                                                 
+2025-11-08  158.02  177.947857  184.525333    downtrend     normal         bearish   risk_off       0.0    139.802548
+2025-11-09  164.53  175.412143  183.728667    downtrend     normal         bearish   risk_off       0.0    139.802548
+2025-11-10  167.31  173.170000  183.385000    downtrend     normal         bearish   risk_off       0.0    139.802548
+2025-11-11  154.63  170.347143  181.972667    downtrend     normal         bearish   risk_off       0.0    139.802548
+2025-11-12  153.42  167.457143  180.130333    downtrend     normal         bearish   risk_off       0.0    139.802548
+2025-11-13  144.73  164.602857  178.206667    downtrend   high_vol         bearish   risk_off       0.0    139.802548
+2025-11-14  138.92  161.153571  176.376000    downtrend   high_vol         bearish   risk_off       0.0    139.802548
+2025-11-15  139.61  157.815000  174.868000    downtrend   high_vol         bearish   risk_off       0.0    139.802548
+2025-11-16  137.17  154.205000  173.375000    downtrend   high_vol         bearish   risk_off       0.0    139.802548
+2025-11-17  139.00  152.272143  171.756333    downtrend   high_vol         bearish   risk_off       0.0    139.802548
+
+Usando SMA(20, 55) para LINK-USD...
+
+################################################################################
+# LINK-USD  (chainlink) - Backtest (Historial completo)
+################################################################################
+
+=== Métricas de Rendimiento (Full Sample) ===
+total_return_strategy       :  77.88%
+total_return_buy_hold       :  2731.46%
+cagr_strategy               :  8.78%
+cagr_buy_hold               :  63.02%
+max_drawdown_strategy       : -76.95%
+max_drawdown_buy_hold       : -90.18%
+annual_volatility_strategy  :  46.92%
+sharpe_ratio                :  0.179
+sortino_ratio               :  0.281
+calmar_ratio                :  0.114
+
+=== Análisis de Trades (Full Sample) ===
+trades_total_num            :  81
+trades_pct_profitable       :  33.33%
+trades_avg_return           :  1.60%
+trades_avg_win              :  14.63%
+trades_avg_loss             : -4.92%
+trades_profit_factor        :  1.49
+trades_max_win              :  80.76%
+trades_max_loss             : -15.94%
+
+=== Métricas (Train) ===
+train_total_return_strategy :  0.8234
+train_total_return_buy_hold :  21.6374
+train_cagr_strategy         :  0.1337
+train_cagr_buy_hold         :  0.9189
+train_max_drawdown_strategy : -0.7175
+train_max_drawdown_buy_hold : -0.9018
+train_annual_volatility_strategy:  0.5061
+train_sharpe_ratio          :  0.2480
+train_calmar_ratio          :  0.1864
+train_sortino_ratio         :  0.3921
+train_trades_total_num      :  61.0000
+train_trades_pct_profitable :  0.3279
+train_trades_avg_return     :  0.0207
+train_trades_avg_win        :  0.1703
+train_trades_avg_loss       : -0.0522
+train_trades_profit_factor  :  1.5903
+train_trades_max_win        :  0.8076
+train_trades_max_loss       : -0.1594
+
+=== Métricas (Test) ===
+test_total_return_strategy  :  0.7788
+test_total_return_buy_hold  :  27.3146
+test_cagr_strategy          :  0.3235
+test_cagr_buy_hold          :  4.0891
+test_max_drawdown_strategy  : -0.3094
+test_max_drawdown_buy_hold  : -0.6265
+test_annual_volatility_strategy:  0.3692
+test_sharpe_ratio           : -0.0326
+test_calmar_ratio           :  1.0455
+test_sortino_ratio          : -0.0497
+test_trades_total_num       :  20.0000
+test_trades_pct_profitable  :  0.3500
+test_trades_avg_return      :  0.0018
+test_trades_avg_win         :  0.0788
+test_trades_avg_loss        : -0.0397
+test_trades_profit_factor   :  1.0699
+test_trades_max_win         :  0.2652
+test_trades_max_loss        : -0.0946
+
+Últimas filas (precio, regímenes, posición):
+            close   SMA_20     SMA_55 trend_regime vol_regime momentum_regime risk_state  position  equity_curve
+date                                                                                                            
+2025-11-08  15.51  16.9685  19.576364    downtrend     normal         bearish   risk_off       0.0      1.778836
+2025-11-09  15.93  16.8320  19.437636    downtrend     normal         bearish   risk_off       0.0      1.778836
+2025-11-10  16.36  16.7695  19.308182    downtrend     normal         neutral    neutral       0.0      1.778836
+2025-11-11  15.28  16.6735  19.149818    downtrend     normal         bearish   risk_off       0.0      1.778836
+2025-11-12  15.15  16.5590  18.977636    downtrend     normal         bearish   risk_off       0.0      1.778836
+2025-11-13  14.54  16.3915  18.815273    downtrend     normal         bearish   risk_off       0.0      1.778836
+2025-11-14  13.81  16.1810  18.642000    downtrend     normal         bearish   risk_off       0.0      1.778836
+2025-11-15  14.14  15.9605  18.481636    downtrend     normal         bearish   risk_off       0.0      1.778836
+2025-11-16  13.73  15.7360  18.337636    downtrend     normal         bearish   risk_off       0.0      1.778836
+2025-11-17  13.86  15.5375  18.198364    downtrend     normal         bearish   risk_off       0.0      1.778836
