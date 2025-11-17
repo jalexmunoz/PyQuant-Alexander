@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 from trades import compute_trade_analysis
 
+# Reemplaza tu función simple_long_only_backtest con esta:
+
 def simple_long_only_backtest(
     df: pd.DataFrame,
     price_col: str = "close",
