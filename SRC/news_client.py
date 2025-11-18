@@ -1,5 +1,11 @@
 # news_client.py
-# v1.0.0 - Cliente de API para servicios de noticias.
+# v1.3.0 - Añadido filtro de spam y captura de 'domain'
+#
+# Historial:
+# v1.3.0 - Añadida blacklist para spam y guardado de 'domain'
+# v1.2.0 - Normaliza "BTC-USD" -> "BTC" y reintenta
+# v1.1.0 - Corregido para bucle de API v2
+# v1.0.0 - Versión inicial
 
 import os
 import logging
@@ -14,63 +20,95 @@ class NewsClient:
     """
     Envoltorio para APIs de noticias (CryptoPanic, NewsAPI, etc.)
     """
-
+    
     def __init__(self, service: str = "cryptopanic"):
         self.service = service
         self.api_key = None
-
+        
         if self.service == "cryptopanic":
             self.api_key = CRYPTOPANIC_API_KEY
-            self.base_url = "https://cryptopanic.com/api/developer/v2"
+            self.base_url = "https://cryptopanic.com/api/developer/v2" # v2 es correcto
             if not self.api_key:
-                logging.warning("NewsClient: CRYPTOPANIC_API_KEY no encontrada. No se podrán obtener noticias.")
+                logging.warning("NewsClient: CRYPTOPANIC_API_KEY no encontrada.")
         else:
-            logging.warning(f"NewsClient: Servicio '{self.service}' no reconocido.")
-        
+            logging.warning(f"NewsClient: Servicio '{service}' no soportado.")
+
+    def _normalize_symbol(self, symbol: str) -> str:
+        """
+        Normaliza un símbolo de "BTC-USD" a "BTC".
+        """
+        if "-" in symbol:
+            return symbol.split("-")[0].upper()
+        return symbol.upper()
+
     def get_headlines_for_symbols(self, symbols: list[str], limit: int = 3) -> dict:
         """
-        Obtiene titulares de CryptoPanic para una lista de símbolos (ej. "BTC", "ETH").
-        Devuelve un dict: {"BTC": [lista de noticias], "ETH": [lista de noticias]}
+        Obtiene titulares de CryptoPanic para una lista de símbolos.
         """
         if not self.api_key or self.service != "cryptopanic":
             return {}
             
-        # Convierte ["BTC", "ETH"] en "BTC,ETH"
-        currencies_str = ",".join(symbols)
+        news_by_symbol = {}
         
-        # ESTE ES EL CÓDIGO CORRECTO
-        params = {
-            "auth_token": self.api_key,
-            "currencies": currencies_str,
-            "filter": "important" # <<< ESTE ES EL CAMBIO
-}
-        
-        try:
-            response = requests.get(f"{self.base_url}/posts/", params=params, timeout=10)
-            response.raise_for_status() # Lanza error si la API falla
-            data = response.json()
+        # <<< INICIO BLOQUE NUEVO (Sugerencia b) >>>
+        # Filtro de ruido "shitcoinero"
+        blacklist_snippets = [
+            "Best Meme Coins", "Presales to Buy", "New Coins That Will Explode",
+            "Best Crypto Presales", "Top X Coins to Buy", "Official Trump",
+            "Useless Coin", "Bitcoin Hyper"
+        ]
+        # <<< FIN BLOQUE NUEVO >>>
+
+        for symbol in symbols:
+            code = self._normalize_symbol(symbol)
+            params = {
+                "auth_token": self.api_key,
+                "currencies": code,
+                "filter": "important"
+            }
+            logging.info(f"NewsClient: Buscando noticias 'important' para {symbol} (code={code})...")
             
-            # Procesar y agrupar noticias por símbolo
-            news_by_symbol = {symbol: [] for symbol in symbols}
-            if not data.get("results"):
-                return news_by_symbol
+            try:
+                response = requests.get(f"{self.base_url}/posts/", params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
                 
-            for post in data["results"]:
-                headline = {
-                    "title": post.get("title"),
-                    "url": post.get("url"),
-                    "source": post.get("source", {}).get("title"),
-                    "published_at": post.get("created_at")
-                }
-                
-                # Asignar la noticia a cada símbolo que mencionó
-                for currency in post.get("currencies", []):
-                    symbol = currency.get("code")
-                    if symbol in news_by_symbol and len(news_by_symbol[symbol]) < limit:
-                        news_by_symbol[symbol].append(headline)
+                if not data.get("results"):
+                    logging.info(f"NewsClient: Sin resultados 'important' para {code}, reintentando sin filtro...")
+                    params.pop("filter", None)
+                    response = requests.get(f"{self.base_url}/posts/", params=params, timeout=10)
+                    response.raise_for_status()
+                    data = response.json()
                         
-            return news_by_symbol
+                headlines = []
+                if not data.get("results"):
+                    news_by_symbol[symbol] = []
+                    continue
+                
+                for post in data.get("results", []):
+                    if len(headlines) >= limit:
+                        break
+                    
+                    title = post.get("title", "") or ""
+                    
+                    # <<< INICIO BLOQUE NUEVO (Sugerencia b) >>>
+                    # Aplicar el filtro de spam
+                    if any(bad.lower() in title.lower() for bad in blacklist_snippets):
+                        continue # Saltar esta noticia spam
+                    # <<< FIN BLOQUE NUEVO >>>
+                    
+                    headlines.append({
+                        "title": title,
+                        "url": post.get("url"),
+                        "source": post.get("source", {}).get("title"),
+                        "domain": post.get("source", {}).get("domain"), # <-- Captura de fallback
+                        "published_at": post.get("created_at")
+                    })
+                
+                news_by_symbol[symbol] = headlines
             
-        except Exception as e:
-            logging.error(f"NewsClient: Error al llamar a la API de CryptoPanic: {e}")
-            return {}
+            except Exception as e:
+                logging.error(f"NewsClient: Error al llamar a API para {code}: {e}")
+                news_by_symbol[symbol] = []
+        
+        return news_by_symbol

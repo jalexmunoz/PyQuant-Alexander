@@ -1,7 +1,10 @@
 # run_ai_summary.py
-# v1.1.0 - Actualizado para obtener noticias reales.
+# v1.2.0 - Añadido formato de fuente de noticias
 #
-# Lee el snapshot JSON, pide noticias y resumen a la IA.
+# Historial:
+# v1.2.0 - Se elimina el "(None)" de las fuentes de noticias
+# v1.1.0 - Actualizado para obtener noticias reales
+# v1.0.0 - Versión inicial
 
 import json
 import os
@@ -14,7 +17,7 @@ JSON_INPUT_FILE = os.path.join(OUTPUT_DIR, "daily_snapshot.json")
 
 def run_summary():
     print("=" * 60)
-    print(" Iniciando Asistente de IA de PyQuant (v1.1 con Noticias)...")
+    print(" Iniciando Asistente de IA de PyQuant (v1.2)...") # Versión actualizada
     print("=" * 60)
 
     # 1. Cargar el snapshot JSON
@@ -38,7 +41,7 @@ def run_summary():
         return
 
     # 3. Obtener Noticias Relevantes
-    print("\nObteniendo noticias relevantes de CryptoPanic...")
+    print("\nObteniendo noticias relevantes de CryptoPanic (con filtro)...")
     news_context = assistant.get_contextual_news(snapshot)
     
     if not news_context:
@@ -63,11 +66,30 @@ def run_summary():
     if not news_context:
         print("No se encontraron noticias.")
     else:
+        # <<< INICIO BLOQUE MODIFICADO (Sugerencia a) >>>
+        total_headlines = 0
         for symbol, news_list in news_context.items():
             if news_list:
                 print(f" {symbol}:")
+                total_headlines += len(news_list)
                 for item in news_list:
-                    print(f"   - {item['title']} ({item['source']})")
+                    # Lógica para evitar el (None)
+                    src_title = item.get("source")
+                    src_domain = item.get("domain")
+                    
+                    src_txt = "" # Empezar vacío
+                    if src_title:
+                        src_txt = f" ({src_title})"
+                    elif src_domain:
+                        src_txt = f" ({src_domain})"
+                    # Si ambos son None, src_txt se queda ""
+                    
+                    print(f"   - {item['title']}{src_txt}")
+        
+        if total_headlines == 0:
+            print("No se encontraron titulares relevantes (spam filtrado).")
+        # <<< FIN BLOQUE MODIFICADO >>>
+            
     print("=" * 60)
 
 
