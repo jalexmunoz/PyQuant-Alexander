@@ -1,0 +1,46 @@
+{
+  "as_of_utc": "2025-11-17T20:20:30.441558",
+  "as_of_local": "2025-11-17T15:20:30.441575",
+  "assets": [
+    {
+      "symbol": "BTC-USD",
+      "profile": "BTC-Default",
+      "risk_state": "risk_off",
+      "trend_regime": "downtrend",
+      "momentum_regime": "bearish",
+      "vol_regime": "high_vol",
+      "sma_short": 20,
+      "sma_long": 50
+    },
+    {
+      "symbol": "ETH-USD",
+      "profile": "ETH-Default",
+      "risk_state": "risk_off",
+      "trend_regime": "downtrend",
+      "momentum_regime": "bearish",
+      "vol_regime": "high_vol",
+      "sma_short": 20,
+      "sma_long": 50
+    },
+    {
+      "symbol": "SOL-USD",
+      "profile": "SOL-Optimized",
+      "risk_state": "risk_off",
+      "trend_regime": "downtrend",
+      "momentum_regime": "bearish",
+      "vol_regime": "high_vol",
+      "sma_short": 14,
+      "sma_long": 30
+    },
+    {
+      "symbol": "LINK-USD",
+      "profile": "LINK-Optimized",
+      "risk_state": "risk_off",
+      "trend_regime": "downtrend",
+      "momentum_regime": "bearish",
+      "vol_regime": "normal",
+      "sma_short": 20,
+      "sma_long": 55
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+Iniciando Análisis Walk-Forward (Season 2, Bloque 1)...
+Configuración WF: 3y Train / 1y Test
+Período: 2018-01-01 a 2024-01-01
+
+--- Iniciando WF para BTC-USD (BTC-Default) ---
+
+================================================================================
+ Reporte Walk-Forward (OOS) para: BTC-Default 
+================================================================================
+
+--- Métricas por Ventana (Out-of-Sample) ---
+                                 oos_cagr_strat  oos_cagr_bh  oos_sharpe  oos_profit_factor  oos_max_drawdown  oos_num_trades  strat_beats_bh
+window                                                                                                                                       
+2018-2020 (Train) | 2021 (Test)           7.342        2.149       1.242              8.511            -0.163              12            True
+2019-2021 (Train) | 2022 (Test)           5.837        3.287      -2.687              0.000            -0.224               8            True
+2020-2022 (Train) | 2023 (Test)           2.769        5.070       0.827              1.938            -0.189              14           False
+
+--- Resumen Agregado (Out-of-Sample) ---
+  Ventanas Totales:           3
+  Estrategia > B&H (OOS):     2 / 3  (66.7%)
+  Sharpe OOS (Media):         -0.206
+  Sharpe OOS (Std Dev):       2.159
+  Profit Factor OOS (Media):  3.483
+  Max Drawdown OOS (Media):   -0.192
+  Trades OOS (Media/Ventana): 11.3
+================================================================================
+
+--- Iniciando WF para SOL-USD (SOL-Optimized) ---
+
+================================================================================
+ Reporte Walk-Forward (OOS) para: SOL-Optimized 
+================================================================================
+
+--- Métricas por Ventana (Out-of-Sample) ---
+                                 oos_cagr_strat  oos_cagr_bh  oos_sharpe  oos_profit_factor  oos_max_drawdown  oos_num_trades  strat_beats_bh
+window                                                                                                                                       
+2018-2020 (Train) | 2021 (Test)          16.245       44.261       2.744              9.520            -0.511              15           False
+2019-2021 (Train) | 2022 (Test)          13.695        1.655      -0.533              0.459            -0.367               8            True
+2020-2022 (Train) | 2023 (Test)          54.169       26.083       2.199              9.231            -0.264              12            True
+
+--- Resumen Agregado (Out-of-Sample) ---
+  Ventanas Totales:           3
+  Estrategia > B&H (OOS):     2 / 3  (66.7%)
+  Sharpe OOS (Media):         1.470
+  Sharpe OOS (Std Dev):       1.756
+  Profit Factor OOS (Media):  6.404
+  Max Drawdown OOS (Media):   -0.381
+  Trades OOS (Media/Ventana): 11.7
+================================================================================

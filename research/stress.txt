@@ -1,0 +1,37 @@
+(base) C:\Quantum Trade\SRC>python run_portfolio_stress_tests.py
+
+(base) C:\Quantum Trade\SRC>python run_portfolio_stress_tests.py
+INFO:root:Cliente de Binance inicializado exitosamente.
+Iniciando Stress Testing de Portafolio por Regímenes...
+INFO:root:DataEngine inicializado (fuente por defecto: binance)
+INFO:root:Iniciando descarga de Binance para BTCUSDT desde 2017-01-01...
+INFO:root:Descarga de Binance para BTCUSDT completada. 3017 registros. Rango: 2017-08-17 00:00:00 a 2025-11-19 00:00:00
+INFO:root:RiskEngine inicializado para BTC-Default
+INFO:root:Iniciando descarga de Binance para ETHUSDT desde 2017-01-01...
+INFO:root:Descarga de Binance para ETHUSDT completada. 3017 registros. Rango: 2017-08-17 00:00:00 a 2025-11-19 00:00:00
+INFO:root:RiskEngine inicializado para ETH-Default
+INFO:root:Iniciando descarga de Binance para SOLUSDT desde 2017-01-01...
+INFO:root:Descarga de Binance para SOLUSDT completada. 1927 registros. Rango: 2020-08-11 00:00:00 a 2025-11-19 00:00:00
+INFO:root:RiskEngine inicializado para SOL-Optimized
+INFO:root:PortfolioEngine inicializado para ['BTC-USD', 'ETH-USD', 'SOL-USD']
+
+--- Corriendo Escenario: 2018 Crypto Winter (2017-12-01 a 2018-12-31) ---
+INFO:root:Corriendo sub-período: 2017-12-01 a 2018-12-31
+WARNING:root:Activo SOL-USD vacío en el período 2017-12-01 - 2018-12-31. Saltando.
+
+--- Corriendo Escenario: COVID Crash (Mar'20) (2020-02-01 a 2020-05-31) ---
+INFO:root:Corriendo sub-período: 2020-02-01 a 2020-05-31
+WARNING:root:Activo SOL-USD vacío en el período 2020-02-01 - 2020-05-31. Saltando.
+
+--- Corriendo Escenario: 2022 Bear Market / FTX (2022-01-01 a 2023-01-31) ---
+INFO:root:Corriendo sub-período: 2022-01-01 a 2023-01-31
+INFO:root:PortfolioEngine inicializado para ['BTC-USD', 'ETH-USD', 'SOL-USD']
+
+================================================================================
+ 📊 REPORTE INSTITUCIONAL: STRESS TESTING POR REGÍMENES DE MERCADO
+================================================================================
+                       total_return_strategy max_drawdown_stress cagr_strategy VaR_95_daily CVaR_95_daily
+Scenario
+2022 Bear Market / FTX                -5.88%             -27.98%        -5.44%      -1.268%       -2.843%
+================================================================================
+INFO:root:Stress Testing completado. Esta matriz de riesgo es clave para la Tarea B.

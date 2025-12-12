@@ -1,0 +1,42 @@
+Iniciando Análisis de Portafolio (Season 2, Bloque 2)...
+
+--- Procesando BTC-USD (RiskEngine) ---
+
+--- Procesando ETH-USD (RiskEngine) ---
+
+--- Procesando SOL-USD (RiskEngine) ---
+
+================================================================================
+ PASO FINAL: Ejecutando PortfolioBacktestEngine 
+================================================================================
+
+================================================================================
+ Reporte Portfolio Backtest (Multi-Activo con Risk Overlay) 
+================================================================================
+ Portafolio: ['BTC-USD', 'ETH-USD', 'SOL-USD']
+
+=== Métricas de Rendimiento (Full Sample) ===
+total_return_strategy       :  4069.05%
+cagr_strategy               :  57.06%
+max_drawdown_strategy       : -34.89%
+annual_volatility_strategy  :  27.33%
+sharpe_ratio                :  1.652
+sortino_ratio               :  2.811
+calmar_ratio                :  1.636
+
+=== Análisis de Trades (Full Sample) ===
+================================================================================
+
+Últimas filas de la curva de Equity del Portafolio:
+date
+2025-11-10   41.691
+2025-11-11   41.691
+2025-11-12   41.691
+2025-11-13   41.691
+2025-11-14   41.691
+2025-11-15   41.691
+2025-11-16   41.691
+2025-11-17   41.691
+2025-11-18   41.691
+2025-11-19   41.691
+Freq: D

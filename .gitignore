@@ -1,0 +1,38 @@
+# --- ARCHIVOS PESADOS / BINARIOS ---
+*.dll
+*.exe
+*.pak
+*.bin
+*.dat
+*.zip
+*.rar
+*.7z
+*.pdf
+*.docx
+*.xlsx
+*.csv
+*.png
+*.jpg
+*.jpeg
+
+# --- CARPETAS QUE NO DEBEN IR AL REPO ---
+142.0.7444.176/
+shadowoutput/
+execution/output/
+reportes/
+research/chromedriver.exe
+utils/chromedriver.exe
+runners/chromedriver.exe
+
+# --- NOTEBOOKS PESADOS ---
+*.ipynb
+
+# --- ENTORNOS ---
+.env
+*.egg-info/
+__pycache__/
+*.pyc
+
+# --- SISTEMA ---
+.DS_Store
+Thumbs.db

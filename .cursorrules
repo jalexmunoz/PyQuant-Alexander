@@ -1,0 +1,55 @@
+# Crypto Quant Framework - Cursor Rules
+
+## Project Identity
+Multi-Asset Crypto Portfolio (BTC, ETH, SOL, LINK)  
+Goal: Alpha with Low Beta | Current: CAGR 57.06%, Beta 0.183
+
+## Architecture
+4-phase pipeline: Data → Risk → Strategy → Portfolio  
+Risk Engine: Dynamic regime (risk_on/risk_off overlay)
+
+## Current Phase: Block 4
+- Stress testing (2018, 2022)
+- Multi-factor OLS (Alpha/Beta decomposition)
+- Next: Walk-Forward Analysis
+
+## Tech Stack
+- Data Handling: Pandas (Current), Plan to migrate to Polars/DuckDB later
+- Backtest: VectorBT
+- Stats: Statsmodels, SciPy
+- Reporting: Pyfolio Reloaded
+
+## Code Standards (MANDATORY)
+- Type hints on ALL functions
+- OOP architecture (core/, runners/)
+- Pytest for every module
+- Google-style docstrings
+- Log returns (NOT simple returns)
+
+## Anti-Overfitting
+1. Walk-Forward (rolling 6mo)
+2. T-Test on out-of-sample Sharpe (p < 0.05)
+3. VaR/CVaR on stress periods
+4. Zero data leakage (non-overlapping features)
+
+## Communication Style
+User is direct, technical, zero bullshit.  
+Expected from Sonnet:
+- Show code immediately when asked
+- NO basic explanations (user knows Python/Quant)
+- DO highlight trade-offs when multiple options exist
+- Ask ONLY essential clarifications (max 1-2 questions)
+
+## Philosophy (Kantian Framework)
+Raw data ≠ Reality → Models impose structure on chaos  
+Backtesting = Critique of Pure Experience
+
+## Reference Docs
+See docs/CONTEXT.md for full context  
+See docs/PLAYBOOK.md for technical details
+
+## Workflow
+SPONSOR (user) → strategic decisions  
+ARCHITECT (user + thinking) → pipeline design  
+PROGRAMMER (Cursor + Sonnet) → implementation  
+TESTER (user validates + Sonnet generates)
