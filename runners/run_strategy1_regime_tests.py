@@ -1,18 +1,25 @@
 # runners/run_strategy1_regime_tests.py
-# v1.0.0 - Strategy 1 Regime Stress Tests
+# v1.1.0 - Strategy 1 Regime Stress Tests with Strict Mode
 #
 # Purpose: Validate Trend Filter strategy through key historical stress periods
 # before v0.1-shadow-beta freeze.
 #
 # Scenarios: 2018 Crypto Winter, COVID Crash, 2022 Bear/FTX
+#
+# v1.1.0 Changes:
+# - Added STRICT mode: fail fast if any asset fetch fails
+# - Track requested/fetched/missing assets explicitly
+# - Always print final weights used by PortfolioEngine
+# - Enable caching for TradingView fetches
 
 import sys
 from pathlib import Path
 import pandas as pd
 import numpy as np
 import logging
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Set
 from datetime import datetime
+from dataclasses import dataclass, field
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -29,12 +36,20 @@ from core.strategies.trend_filter_strategy import (
 )
 from core.portfolio_backtest_engine import PortfolioBacktestEngine
 from utils.data_fetcher import get_tradingview_ohlc
+from utils.quantstats_reports import generate_regime_tearsheet
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+
+# STRICT MODE: If True, fail fast when any expected asset fails to fetch
+# Set to False to allow partial asset sets (with renormalized weights)
+STRICT_MODE: bool = True
+
+# Enable caching for TradingView fetches (reduces connection drops)
+USE_CACHE: bool = True
 
 STRESS_SCENARIOS: Dict[str, Tuple[str, str]] = {
     "2018 Crypto Winter": ("2017-12-01", "2018-12-31"),
@@ -54,6 +69,82 @@ ASSET_AVAILABILITY: Dict[str, str] = {
 
 
 # =============================================================================
+# ASSET TRACKING
+# =============================================================================
+
+@dataclass
+class AssetTracker:
+    """
+    Track asset availability and fetch status for a scenario.
+    
+    Terminology:
+    - requested_assets: All assets in BASE_TARGETS
+    - historically_unavailable: Assets that didn't exist at scenario start date
+    - fetch_failed: Assets that existed but data fetch failed (network, etc.)
+    - fetched_successfully: Assets with data retrieved OK
+    
+    Status semantics:
+    - FULL: All historically-available assets were fetched successfully
+    - PARTIAL: Some historically-available assets failed to fetch (fetch_failed > 0)
+    """
+    scenario_name: str
+    requested_assets: Set[str] = field(default_factory=set)
+    historically_unavailable: Set[str] = field(default_factory=set)  # Didn't exist yet
+    fetch_failed: Set[str] = field(default_factory=set)  # Existed but fetch failed
+    fetched_successfully: Set[str] = field(default_factory=set)
+    original_weights: Dict[str, float] = field(default_factory=dict)
+    final_weights: Dict[str, float] = field(default_factory=dict)
+    
+    @property
+    def is_partial(self) -> bool:
+        """
+        True if any historically-available asset failed to fetch.
+        
+        Note: Assets excluded due to historical unavailability do NOT make this partial.
+        """
+        return len(self.fetch_failed) > 0
+    
+    @property
+    def expected_assets(self) -> Set[str]:
+        """Assets that were expected (historically available) for this scenario."""
+        return self.requested_assets - self.historically_unavailable
+    
+    def print_summary(self) -> None:
+        """Print asset tracking summary."""
+        print(f"\n ASSET TRACKING:")
+        print(f"   Requested (base):     {sorted(self.requested_assets)}")
+        print(f"   Hist. Unavailable:    {sorted(self.historically_unavailable) or '(none)'}")
+        print(f"   Expected (hist OK):   {sorted(self.expected_assets)}")
+        print(f"   Fetch Failed:         {sorted(self.fetch_failed) or '(none)'}")
+        print(f"   Fetched Successfully: {sorted(self.fetched_successfully)}")
+        
+        # Only show PARTIAL warning if fetch_failed > 0
+        if self.is_partial:
+            print(f"\n   ⚠️  PARTIAL: {len(self.fetch_failed)} asset(s) failed to fetch!")
+        else:
+            print(f"\n   ✓ FULL: All historically-available assets fetched")
+        
+        print(f"\n   Original Weights: {self.original_weights}")
+        print(f"   Final Weights:    {self.final_weights}")
+        
+        # Verify sum = 1
+        total = sum(self.final_weights.values())
+        if abs(total - 1.0) > 0.001:
+            print(f"   ⚠️  WARNING: Weights sum to {total:.4f}, not 1.0!")
+        else:
+            print(f"   ✓ Weights sum: {total:.4f}")
+    
+    def has_fetch_failures(self) -> bool:
+        """Check if any assets failed to fetch (not due to historical unavailability)."""
+        return self.is_partial
+
+
+class DataFetchError(RuntimeError):
+    """Raised when asset data fetch fails in STRICT mode."""
+    pass
+
+
+# =============================================================================
 # DATA FUNCTIONS
 # =============================================================================
 
@@ -61,32 +152,35 @@ def fetch_asset_data(
     symbol: str,
     start_date: str,
     end_date: str,
-    buffer_days: int = 250  # Need 200+ days before start for SMA200
+    tracker: AssetTracker,
+    use_cache: bool = USE_CACHE
 ) -> Optional[pd.DataFrame]:
     """
     Fetch OHLCV data for a single asset with buffer for SMA calculation.
     
-    Returns None if asset wasn't available during the period.
+    NOTE: This function is only called for historically-available assets.
+          Historical availability is determined by get_assets_for_scenario().
+    
+    Updates tracker with:
+    - fetched_successfully: if fetch succeeds
+    - fetch_failed: if fetch fails (network error, no data, etc.)
+    
+    Returns:
+        DataFrame if successful, None if fetch failed
     """
-    # Check if asset was available
-    availability_date = pd.Timestamp(ASSET_AVAILABILITY.get(symbol, "2017-01-01"))
-    scenario_start = pd.Timestamp(start_date)
-    
-    if availability_date > scenario_start:
-        logging.warning(f"  [SKIP] {symbol} not available until {availability_date.strftime('%Y-%m-%d')}")
-        return None
-    
+    # Asset should exist historically - attempt fetch
     try:
-        # Fetch max available history (TradingView free has limits)
-        # 5000 daily bars ≈ 13+ years
         df = get_tradingview_ohlc(
             symbol=symbol,
             exchange="BINANCE",
-            n_bars=5000
+            n_bars=5000,
+            use_cache=use_cache
         )
         
-        if df.empty:
-            logging.warning(f"  [WARN] No data returned for {symbol}")
+        # get_tradingview_ohlc now returns None on failure (after retries)
+        if df is None or df.empty:
+            logging.error(f"  [FETCH FAIL] {symbol} - No data returned after retries")
+            tracker.fetch_failed.add(symbol)
             return None
         
         # Ensure datetime index
@@ -99,46 +193,87 @@ def fetch_asset_data(
         
         # Check data coverage
         data_start = df.index.min()
-        data_end = df.index.max()
-        
-        if data_start > scenario_start:
+        scenario_start_ts = pd.Timestamp(start_date)
+        if data_start > scenario_start_ts:
             logging.warning(f"  [WARN] {symbol} data starts {data_start.strftime('%Y-%m-%d')}, "
                           f"scenario needs {start_date}. Will use available range.")
         
+        tracker.fetched_successfully.add(symbol)
         return df
         
     except Exception as e:
-        logging.error(f"  [ERROR] Failed to fetch {symbol}: {e}")
+        logging.error(f"  [FETCH ERROR] {symbol}: {e}")
+        tracker.fetch_failed.add(symbol)
         return None
 
 
-def get_assets_for_scenario(scenario_name: str, start_date: str) -> Dict[str, float]:
+def get_assets_for_scenario(
+    scenario_name: str, 
+    start_date: str,
+    tracker: AssetTracker
+) -> Dict[str, float]:
     """
-    Get available assets and adjusted weights for a scenario.
+    Get expected assets and base weights for a scenario.
     
-    Redistributes weights if some assets aren't available.
+    Determines which assets should be available based on historical dates.
+    Does NOT renormalize weights - that happens after fetch attempts.
+    
+    Updates tracker with:
+    - requested_assets: all assets in BASE_TARGETS
+    - original_weights: base weights for all requested assets
+    - historically_unavailable: assets that didn't exist at scenario start
+    
+    Returns:
+        Dict of expected assets (historically available) with base weights
     """
-    available_assets = {}
-    unavailable_weight = 0.0
-    
+    expected_assets = {}
     scenario_start = pd.Timestamp(start_date)
     
     for symbol, base_weight in BASE_TARGETS.items():
+        tracker.requested_assets.add(symbol)
+        tracker.original_weights[symbol] = base_weight
+        
         availability_date = pd.Timestamp(ASSET_AVAILABILITY.get(symbol, "2017-01-01"))
         
         if availability_date <= scenario_start:
-            available_assets[symbol] = base_weight
+            expected_assets[symbol] = base_weight
         else:
-            unavailable_weight += base_weight
-            logging.info(f"  {symbol} unavailable for {scenario_name} (starts {availability_date.strftime('%Y-%m-%d')})")
+            # Mark as historically unavailable NOW (not during fetch)
+            tracker.historically_unavailable.add(symbol)
+            logging.info(f"  [HIST] {symbol} not available for {scenario_name} (launched {availability_date.strftime('%Y-%m-%d')})")
     
-    # Redistribute unavailable weight proportionally
-    if unavailable_weight > 0 and available_assets:
-        total_available = sum(available_assets.values())
-        for symbol in available_assets:
-            available_assets[symbol] = available_assets[symbol] / total_available
+    return expected_assets
+
+
+def renormalize_weights(weights: Dict[str, float], available_assets: Set[str]) -> Dict[str, float]:
+    """
+    Renormalize weights to sum to 1.0 for available assets only.
     
-    return available_assets
+    Returns dict with only available assets and normalized weights.
+    """
+    filtered = {k: v for k, v in weights.items() if k in available_assets}
+    total = sum(filtered.values())
+    
+    if total > 0:
+        return {k: v / total for k, v in filtered.items()}
+    return {}
+
+
+def print_fetch_failure_table(tracker: AssetTracker) -> None:
+    """Print diagnostic table of fetch failures."""
+    print("\n" + "="*60)
+    print(" ❌ DATA FETCH FAILURE DIAGNOSTIC")
+    print("="*60)
+    print(f" Scenario: {tracker.scenario_name}")
+    print(f" Missing assets due to FETCH FAILURE (not historical):")
+    print("-"*60)
+    for symbol in sorted(tracker.fetch_failed):
+        weight = tracker.original_weights.get(symbol, 0)
+        print(f"   {symbol:<12} (base weight: {weight*100:.1f}%)")
+    print("-"*60)
+    print(" These assets existed historically but data fetch failed.")
+    print(" Check network connection or TradingView availability.")
+    print("="*60)
 
 
 # =============================================================================
@@ -282,45 +417,88 @@ def calculate_portfolio_cash_days(
 def run_scenario(
     scenario_name: str,
     start_date: str,
-    end_date: str
+    end_date: str,
+    strict_mode: bool = STRICT_MODE,
+    allow_partial_assets: bool = False
 ) -> Optional[Dict]:
     """
     Run Strategy 1 backtest for a single stress scenario.
     
-    Returns dict with metrics or None if failed.
+    Parameters:
+        scenario_name: Name of the scenario
+        start_date: Start date (YYYY-MM-DD)
+        end_date: End date (YYYY-MM-DD)
+        strict_mode: If True, fail fast on any fetch failure
+        allow_partial_assets: If True (and not strict), continue with partial asset set
+    
+    Returns:
+        dict with metrics or None if failed
+        
+    Raises:
+        DataFetchError: In strict mode, if any expected asset fails to fetch
     """
     print(f"\n{'='*80}")
     print(f" SCENARIO: {scenario_name}")
     print(f" Period: {start_date} to {end_date}")
+    print(f" Mode: {'STRICT' if strict_mode else 'PARTIAL ALLOWED' if allow_partial_assets else 'STANDARD'}")
     print(f"{'='*80}")
     
-    # 1. Get available assets for this period
-    asset_weights = get_assets_for_scenario(scenario_name, start_date)
-    print(f" Assets: {list(asset_weights.keys())}")
-    print(f" Weights: {asset_weights}")
+    # Initialize asset tracker
+    tracker = AssetTracker(scenario_name=scenario_name)
     
-    if not asset_weights:
+    # 1. Get expected assets for this period (based on historical availability)
+    expected_weights = get_assets_for_scenario(scenario_name, start_date, tracker)
+    print(f"\n Expected Assets (historically available): {list(expected_weights.keys())}")
+    print(f" Base Weights: {expected_weights}")
+    
+    if not expected_weights:
         logging.error(f" No assets available for scenario {scenario_name}")
         return None
     
-    # 2. Fetch data for all available assets
-    print(f"\n Fetching data...")
+    # 2. Fetch data for all expected assets
+    print(f"\n Fetching data (cache={'ON' if USE_CACHE else 'OFF'})...")
     price_data = {}
-    for symbol in asset_weights.keys():
-        df = fetch_asset_data(symbol, start_date, end_date)
-        if df is not None and not df.empty:
+    for symbol in expected_weights.keys():
+        df = fetch_asset_data(symbol, start_date, end_date, tracker)
+        if df is not None:
             price_data[symbol] = df
-            print(f"   {symbol}: {len(df)} bars")
+            print(f"   ✓ {symbol}: {len(df)} bars")
+        else:
+            print(f"   ✗ {symbol}: FAILED")
+    
+    # 3. Check for fetch failures (not historical unavailability)
+    if tracker.has_fetch_failures():
+        print_fetch_failure_table(tracker)
+        
+        if strict_mode:
+            failed_list = ", ".join(sorted(tracker.fetch_failed))
+            raise DataFetchError(
+                f"Scenario '{scenario_name}' invalid: missing {failed_list} due to data fetch failure. "
+                f"Set STRICT_MODE=False to allow partial asset sets."
+            )
+        elif not allow_partial_assets:
+            logging.error(f" Scenario aborted due to fetch failures. Use allow_partial_assets=True to continue.")
+            return None
+        else:
+            print(f"\n ⚠️  CONTINUING WITH PARTIAL ASSET SET (allow_partial_assets=True)")
+            # is_partial is now a computed property based on fetch_failed
     
     if not price_data:
         logging.error(f" No price data available for scenario")
         return None
     
-    # 3. Generate daily positions based on trend filter
+    # 4. Calculate final weights (renormalized for available assets)
+    final_weights = renormalize_weights(expected_weights, tracker.fetched_successfully)
+    tracker.final_weights = final_weights
+    
+    # Print asset tracking summary
+    tracker.print_summary()
+    
+    # 5. Generate daily positions based on trend filter
     print(f"\n Computing trend signals...")
     processed_data, trend_states = generate_daily_positions(
         price_data=price_data,
-        asset_weights=asset_weights,
+        asset_weights=final_weights,
         start_date=start_date,
         end_date=end_date
     )
@@ -336,32 +514,31 @@ def run_scenario(
         actual_end = df.index.max().strftime('%Y-%m-%d')
         print(f"   {symbol}: {actual_start} to {actual_end} ({len(df)} days)")
     
-    # 4. Analyze trend switches
+    # 6. Analyze trend switches
     switch_analysis = analyze_trend_switches(trend_states)
-    cash_pct = calculate_portfolio_cash_days(trend_states, asset_weights)
+    cash_pct = calculate_portfolio_cash_days(trend_states, final_weights)
     
     print(f"\n Trend Analysis:")
     print(f"   Portfolio days in cash: {cash_pct:.1f}%")
     for symbol, stats in switch_analysis.items():
         print(f"   {symbol}: {stats['switches']} switches, {stats['pct_on']:.0f}% ON / {stats['pct_off']:.0f}% OFF")
     
-    # 5. Run PortfolioBacktestEngine
+    # 7. Run PortfolioBacktestEngine with FINAL weights
     print(f"\n Running backtest...")
+    print(f"   Final assets: {list(final_weights.keys())}")
+    print(f"   Final weights: {final_weights}")
     
-    # Adjust weights for actually available processed data
-    available_in_period = set(processed_data.keys())
-    adjusted_weights = {k: v for k, v in asset_weights.items() if k in available_in_period}
-    
-    # Normalize weights
-    total_w = sum(adjusted_weights.values())
-    if total_w > 0:
-        adjusted_weights = {k: v / total_w for k, v in adjusted_weights.items()}
+    # Verify weights sum to 1
+    weight_sum = sum(final_weights.values())
+    if abs(weight_sum - 1.0) > 0.001:
+        logging.error(f"   Weight sum error: {weight_sum:.4f} != 1.0")
+        return None
     
     try:
-        engine = PortfolioBacktestEngine(target_weights=adjusted_weights)
+        engine = PortfolioBacktestEngine(target_weights=final_weights)
         engine.run(processed_data)
         
-        # Extract results using new risk fields
+        # Extract results
         results = engine.get_results()
         metrics = results['metrics']
         
@@ -370,8 +547,12 @@ def run_scenario(
             'scenario': scenario_name,
             'start_date': start_date,
             'end_date': end_date,
-            'assets': list(adjusted_weights.keys()),
-            'weights': adjusted_weights,
+            'assets': list(final_weights.keys()),
+            'weights': final_weights,
+            'is_partial': tracker.is_partial,
+            'original_weights': tracker.original_weights,
+            'fetch_failed': list(tracker.fetch_failed),
+            'historically_unavailable': list(tracker.historically_unavailable),
             # Performance metrics
             'total_return': metrics.get('total_return_strategy', np.nan),
             'cagr': metrics.get('cagr_strategy', np.nan),
@@ -391,6 +572,8 @@ def run_scenario(
         }
         
         print(f"\n Results:")
+        if tracker.is_partial:
+            print(f"   ⚠️  PARTIAL ASSET SET USED")
         print(f"   Total Return: {scenario_result['total_return']*100:+.1f}%")
         print(f"   Max Drawdown: {scenario_result['max_drawdown']*100:.1f}%")
         print(f"   CAGR: {scenario_result['cagr']*100:+.1f}%")
@@ -409,35 +592,53 @@ def print_summary_table(results: List[Dict]) -> None:
     """
     Print summary table of all scenario results.
     """
-    print("\n" + "="*90)
+    print("\n" + "="*100)
     print(" STRATEGY 1 (TREND FILTER) - STRESS TEST SUMMARY")
-    print("="*90)
+    print("="*100)
     print(f" SMA Short: {SMA_SHORT} | SMA Long: {SMA_LONG}")
     print(f" Base Targets: {BASE_TARGETS}")
-    print("-"*90)
+    print("-"*100)
     
     # Header
-    print(f"\n{'Scenario':<28} {'Return':>10} {'Max DD':>10} {'CAGR':>10} {'Sharpe':>10} {'Cash %':>10}")
-    print("-"*90)
+    print(f"\n{'Scenario':<28} {'Assets':>12} {'Return':>10} {'Max DD':>10} {'CAGR':>10} {'Sharpe':>8} {'Cash %':>8} {'Status':>10}")
+    print("-"*100)
     
     for r in results:
         if r is None:
             continue
         
         name = r['scenario'][:27]
+        assets = f"{len(r['assets'])}/{len(BASE_TARGETS)}"
         ret = f"{r['total_return']*100:+.1f}%" if not np.isnan(r['total_return']) else "N/A"
         dd = f"{r['max_drawdown']*100:.1f}%" if not np.isnan(r['max_drawdown']) else "N/A"
         cagr = f"{r['cagr']*100:+.1f}%" if not np.isnan(r['cagr']) else "N/A"
         sharpe = f"{r['sharpe']:.2f}" if not np.isnan(r['sharpe']) else "N/A"
         cash = f"{r['cash_pct']:.0f}%"
+        status = "PARTIAL" if r.get('is_partial', False) else "FULL"
         
-        print(f"{name:<28} {ret:>10} {dd:>10} {cagr:>10} {sharpe:>10} {cash:>10}")
+        print(f"{name:<28} {assets:>12} {ret:>10} {dd:>10} {cagr:>10} {sharpe:>8} {cash:>8} {status:>10}")
     
-    print("-"*90)
+    print("-"*100)
+    
+    # Show final weights used for each scenario
+    print("\n FINAL WEIGHTS USED (after renormalization):")
+    print("-"*100)
+    
+    for r in results:
+        if r is None:
+            continue
+        weights_str = ", ".join([f"{k}: {v*100:.1f}%" for k, v in r['weights'].items()])
+        partial_flag = " [PARTIAL]" if r.get('is_partial', False) else ""
+        print(f" {r['scenario']}{partial_flag}:")
+        print(f"   {weights_str}")
+        if r.get('fetch_failed'):
+            print(f"   ⚠️ Fetch failed: {r['fetch_failed']}")
+        if r.get('historically_unavailable'):
+            print(f"   (Historically unavailable: {r['historically_unavailable']})")
     
     # Detailed switch analysis
     print("\n TREND SWITCHES BY ASSET:")
-    print("-"*90)
+    print("-"*100)
     
     for r in results:
         if r is None:
@@ -446,29 +647,56 @@ def print_summary_table(results: List[Dict]) -> None:
         for symbol, stats in r['switch_analysis'].items():
             print(f"   {symbol:<10} {stats['switches']:>3} switches | ON: {stats['pct_on']:>4.0f}% ({stats['days_on']:>4} days) | OFF: {stats['pct_off']:>4.0f}% ({stats['days_off']:>4} days)")
     
-    print("\n" + "="*90)
+    print("\n" + "="*100)
     print(" INTERPRETATION:")
-    print("-"*90)
+    print("-"*100)
     print(" - High Cash %: Strategy correctly identified downtrend and exited")
     print(" - Low Switches: Less whipsawing, smoother equity curve")
     print(" - Positive Return in bear: Alpha from trend following")
     print(" - Max DD < Buy-Hold: Risk management working")
-    print("="*90)
+    
+    # Only show PARTIAL explanation if any scenario is actually PARTIAL
+    has_partial = any(r.get('is_partial', False) for r in results if r is not None)
+    if has_partial:
+        print(" - PARTIAL status: Some assets missing due to fetch failure (results may not represent full basket)")
+    
+    print("="*100)
 
 
-def run_all_scenarios() -> List[Dict]:
+def run_all_scenarios(
+    strict_mode: bool = STRICT_MODE,
+    allow_partial_assets: bool = False
+) -> List[Dict]:
     """
     Run all stress scenarios and return results.
+    
+    Parameters:
+        strict_mode: If True, fail fast on any fetch failure
+        allow_partial_assets: If True (and not strict), continue with partial asset sets
+    
+    Returns:
+        List of result dicts (None for failed scenarios)
+        
+    Raises:
+        DataFetchError: In strict mode, if any expected asset fails to fetch
     """
     print("\n" + "#"*90)
     print(" STRATEGY 1 REGIME TESTS")
     print(" Validating Trend Filter through historical stress periods")
+    print(f" Mode: {'STRICT' if strict_mode else 'PARTIAL ALLOWED' if allow_partial_assets else 'STANDARD'}")
+    print(f" Cache: {'ON' if USE_CACHE else 'OFF'}")
     print("#"*90)
     
     results = []
     
     for scenario_name, (start_date, end_date) in STRESS_SCENARIOS.items():
-        result = run_scenario(scenario_name, start_date, end_date)
+        result = run_scenario(
+            scenario_name, 
+            start_date, 
+            end_date,
+            strict_mode=strict_mode,
+            allow_partial_assets=allow_partial_assets
+        )
         results.append(result)
     
     return results
@@ -479,16 +707,70 @@ def run_all_scenarios() -> List[Dict]:
 # =============================================================================
 
 if __name__ == "__main__":
-    # Run all scenarios
-    results = run_all_scenarios()
+    import argparse
     
-    # Print summary
-    valid_results = [r for r in results if r is not None]
+    parser = argparse.ArgumentParser(description="Strategy 1 Regime Stress Tests")
+    parser.add_argument(
+        "--no-strict", 
+        action="store_true", 
+        help="Disable strict mode (allow partial asset sets on fetch failure)"
+    )
+    parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="Continue with partial asset sets when fetch fails (requires --no-strict)"
+    )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable data caching"
+    )
+    args = parser.parse_args()
     
-    if valid_results:
-        print_summary_table(valid_results)
-    else:
-        print("\n[ERROR] No scenarios completed successfully.")
+    # Override globals based on args
+    if args.no_cache:
+        USE_CACHE = False
     
-    print("\n[DONE] Strategy 1 regime tests complete.")
+    strict_mode = not args.no_strict
+    allow_partial = args.allow_partial
+    
+    try:
+        # Run all scenarios
+        results = run_all_scenarios(
+            strict_mode=strict_mode,
+            allow_partial_assets=allow_partial
+        )
+        
+        # Print summary
+        valid_results = [r for r in results if r is not None]
+        
+        if valid_results:
+            print_summary_table(valid_results)
+            
+            # Generate QuantStats HTML tear sheets
+            try:
+                generate_regime_tearsheet(
+                    regime_results=valid_results,
+                    output_dir="Output/quantstats"
+                )
+                print("QuantStats reports generated in Output/quantstats/")
+            except ImportError as e:
+                print(f"\n[WARN] {e}")
+                print("       Skipping QuantStats report generation.")
+            except Exception as e:
+                print(f"\n[ERROR] QuantStats generation failed: {e}")
+        else:
+            print("\n[ERROR] No scenarios completed successfully.")
+        
+        print("\n[DONE] Strategy 1 regime tests complete.")
+        
+    except DataFetchError as e:
+        print(f"\n{'='*80}")
+        print(f" ❌ STRICT MODE FAILURE")
+        print(f"{'='*80}")
+        print(f" {e}")
+        print(f"\n To continue with partial asset sets, run with:")
+        print(f"   python {__file__} --no-strict --allow-partial")
+        print(f"{'='*80}")
+        sys.exit(1)
 

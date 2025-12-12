@@ -23,6 +23,9 @@ scipy>=1.11.0                 # Statistical distributions
 # === Visualization ===
 matplotlib>=3.7.0             # Core plotting
 
+# === Performance Reporting ===
+quantstats>=0.0.62            # Professional performance tear sheets
+
 # === AI/LLM ===
 openai>=1.0.0                 # OpenAI API client (for AI summary features)
 
