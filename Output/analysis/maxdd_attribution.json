@@ -1,0 +1,127 @@
+[
+  {
+    "scenario": "2018 Crypto Winter",
+    "max_drawdown_pct": -16.107708018045553,
+    "max_drawdown_date": "2018-05-22",
+    "asset_states": [
+      {
+        "symbol": "BTCUSDT",
+        "signal": "OFF",
+        "target_weight": 0.5,
+        "effective_weight": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "signal": "OFF",
+        "target_weight": 0.5,
+        "effective_weight": 0
+      }
+    ],
+    "total_exposure_pct": 0.0,
+    "switches_in_window": 1,
+    "switch_details": [
+      {
+        "symbol": "ETHUSDT",
+        "date": "2018-05-22",
+        "direction": "ON\u2192OFF"
+      }
+    ],
+    "interpretation": "Strategy correctly defensive - low exposure during drawdown indicates risk management working"
+  },
+  {
+    "scenario": "COVID Crash (Mar'20)",
+    "max_drawdown_pct": -25.492549549449393,
+    "max_drawdown_date": "2020-04-19",
+    "asset_states": [
+      {
+        "symbol": "BTCUSDT",
+        "signal": "OFF",
+        "target_weight": 0.47058823529411764,
+        "effective_weight": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "signal": "ON",
+        "target_weight": 0.47058823529411764,
+        "effective_weight": 0.47058823529411764
+      },
+      {
+        "symbol": "LINKUSDT",
+        "signal": "ON",
+        "target_weight": 0.058823529411764705,
+        "effective_weight": 0.058823529411764705
+      }
+    ],
+    "total_exposure_pct": 52.94117647058824,
+    "switches_in_window": 3,
+    "switch_details": [
+      {
+        "symbol": "LINKUSDT",
+        "date": "2020-04-07",
+        "direction": "OFF\u2192ON"
+      },
+      {
+        "symbol": "ETHUSDT",
+        "date": "2020-04-15",
+        "direction": "OFF\u2192ON"
+      },
+      {
+        "symbol": "BTCUSDT",
+        "date": "2020-04-28",
+        "direction": "OFF\u2192ON"
+      }
+    ],
+    "interpretation": "Moderate exposure - review individual asset signals for optimization opportunities"
+  },
+  {
+    "scenario": "2022 Bear Market / FTX",
+    "max_drawdown_pct": -9.000173871287476,
+    "max_drawdown_date": "2023-01-11",
+    "asset_states": [
+      {
+        "symbol": "BTCUSDT",
+        "signal": "OFF",
+        "target_weight": 0.4,
+        "effective_weight": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "signal": "ON",
+        "target_weight": 0.4,
+        "effective_weight": 0.4
+      },
+      {
+        "symbol": "SOLUSDT",
+        "signal": "OFF",
+        "target_weight": 0.15,
+        "effective_weight": 0
+      },
+      {
+        "symbol": "LINKUSDT",
+        "signal": "OFF",
+        "target_weight": 0.05,
+        "effective_weight": 0
+      }
+    ],
+    "total_exposure_pct": 40.0,
+    "switches_in_window": 3,
+    "switch_details": [
+      {
+        "symbol": "ETHUSDT",
+        "date": "2023-01-11",
+        "direction": "OFF\u2192ON"
+      },
+      {
+        "symbol": "BTCUSDT",
+        "date": "2023-01-12",
+        "direction": "OFF\u2192ON"
+      },
+      {
+        "symbol": "LINKUSDT",
+        "date": "2023-01-22",
+        "direction": "OFF\u2192ON"
+      }
+    ],
+    "interpretation": "Moderate exposure - review individual asset signals for optimization opportunities"
+  }
+]
