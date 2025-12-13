@@ -78,6 +78,39 @@ def _ensure_output_dir(output_path: str) -> Path:
     return path
 
 
+def calc_risk_metrics(returns: pd.Series, confidence: float = 0.05) -> Tuple[float, float]:
+    """
+    Calculate VaR and CVaR at given confidence level.
+    
+    Parameters:
+        returns: Daily returns series (log or simple)
+        confidence: Confidence level for VaR (default 0.05 = 95% VaR)
+        
+    Returns:
+        Tuple of (VaR, CVaR) as decimals (e.g., -0.03 = -3%)
+        
+    Note:
+        VaR = Value at Risk (worst expected loss at confidence level)
+        CVaR = Conditional VaR (expected loss given VaR is breached)
+    """
+    if returns is None or len(returns.dropna()) == 0:
+        return np.nan, np.nan
+    
+    clean_returns = returns.dropna()
+    
+    # VaR: quantile at confidence level (e.g., 5th percentile)
+    var = float(clean_returns.quantile(confidence))
+    
+    # CVaR: mean of returns below VaR
+    tail_returns = clean_returns[clean_returns <= var]
+    if len(tail_returns) > 0:
+        cvar = float(tail_returns.mean())
+    else:
+        cvar = var  # Fallback if no tail observations
+    
+    return var, cvar
+
+
 def _safe_write_file(
     path: Path,
     write_func,
@@ -249,6 +282,10 @@ def generate_scoreboard(
         switch_analysis = result.get('switch_analysis', {})
         total_switches = sum(s.get('switches', 0) for s in switch_analysis.values())
         
+        # Calculate VaR/CVaR directly from returns (fixes NaN issue)
+        returns_series = result.get('returns')
+        var_95, cvar_95 = calc_risk_metrics(returns_series, confidence=0.05)
+        
         row = {
             'Scenario': scenario,
             'Period': f"{result.get('start_date', '')} to {result.get('end_date', '')}",
@@ -258,8 +295,8 @@ def generate_scoreboard(
             'CAGR (%)': result.get('cagr', np.nan) * 100,
             'Sharpe': result.get('sharpe', np.nan),
             'Sortino': result.get('sortino', np.nan),
-            'VaR 95 (%)': result.get('var_95', np.nan) * 100 if result.get('var_95') else np.nan,
-            'CVaR 95 (%)': result.get('cvar_95', np.nan) * 100 if result.get('cvar_95') else np.nan,
+            'VaR 95 (%)': var_95 * 100 if not np.isnan(var_95) else np.nan,
+            'CVaR 95 (%)': cvar_95 * 100 if not np.isnan(cvar_95) else np.nan,
             'Cash Days (%)': result.get('cash_pct', np.nan),
             'Total Switches': total_switches,
             'Status': 'PARTIAL' if result.get('is_partial', False) else 'FULL',
@@ -307,7 +344,8 @@ def generate_scoreboard(
             if len(valid_sharpe) > 0:
                 f.write(f"- **Average Sharpe**: {valid_sharpe.mean():.2f}\n")
             if len(valid_dd) > 0:
-                f.write(f"- **Worst Max DD**: {valid_dd.max():.2f}%\n")
+                # Use .min() because DD is negative - most negative is worst
+                f.write(f"- **Worst Max DD**: {valid_dd.min():.2f}%\n")
             
             f.write("\n---\n")
             f.write(f"*Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}*\n")
@@ -321,6 +359,45 @@ def generate_scoreboard(
     return df
 
 
+def _inject_warning_banner(html_path: Path, warning_html: str) -> bool:
+    """
+    Inject a warning banner into an existing HTML file.
+    
+    Inserts the warning after the opening <body> tag.
+    
+    Returns True if successful.
+    """
+    try:
+        with open(html_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Find <body> tag and insert after it
+        body_pos = content.lower().find('<body')
+        if body_pos == -1:
+            logging.warning(f"[WARN] No <body> tag found in {html_path}")
+            return False
+        
+        # Find the end of the body tag
+        body_end = content.find('>', body_pos)
+        if body_end == -1:
+            return False
+        
+        # Insert warning after body tag
+        new_content = (
+            content[:body_end + 1] + 
+            '\n' + warning_html + '\n' +
+            content[body_end + 1:]
+        )
+        
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        
+        return True
+    except Exception as e:
+        logging.warning(f"[WARN] Failed to inject warning banner: {e}")
+        return False
+
+
 def generate_synthetic_combined(
     regime_results: List[Dict],
     output_dir: str = "Output/quantstats"
@@ -328,9 +405,8 @@ def generate_synthetic_combined(
     """
     Generate a synthetic combined returns series with no calendar gaps.
     
-    This concatenates all regime returns sequentially using a synthetic
-    date index (starting from 2000-01-01) so QuantStats can compute
-    valid statistics without calendar gap distortion.
+    This concatenates all regime returns sequentially using a SYNTHETIC
+    date index for visualization only. Real dates are NOT preserved.
     
     Parameters:
         regime_results: List of dicts with 'returns' key
@@ -340,7 +416,7 @@ def generate_synthetic_combined(
         Synthetic combined returns series (or None if failed)
         
     Creates:
-        - Output/quantstats/combined_oos_synthetic.html
+        - Output/quantstats/combined_oos_synthetic_VISUAL_ONLY.html
     """
     if not QUANTSTATS_AVAILABLE:
         logging.warning("[SKIP] QuantStats not available for synthetic combined")
@@ -353,21 +429,25 @@ def generate_synthetic_combined(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     
-    # Collect all returns (in order)
+    # Collect all returns (in order) and count days per scenario
     all_returns = []
-    scenario_labels = []
+    scenario_info = []
     
     for result in regime_results:
         if result is None:
             continue
         
         returns = result.get('returns')
-        if not _validate_returns(returns, result.get('scenario', 'unknown')):
+        scenario_name = result.get('scenario', 'unknown')
+        if not _validate_returns(returns, scenario_name):
             continue
         
         clean_returns = returns.dropna()
         all_returns.append(clean_returns)
-        scenario_labels.append(result.get('scenario', 'unknown'))
+        scenario_info.append({
+            'name': scenario_name,
+            'days': len(clean_returns)
+        })
     
     if not all_returns:
         logging.warning("[SKIP] No valid returns for synthetic combined")
@@ -376,7 +456,7 @@ def generate_synthetic_combined(
     # Concatenate returns sequentially (ignore original dates)
     combined_values = pd.concat(all_returns, axis=0, ignore_index=True)
     
-    # Create synthetic daily date index
+    # Create synthetic daily date index (starting from 2000-01-01)
     synthetic_dates = pd.date_range(
         start='2000-01-01',
         periods=len(combined_values),
@@ -389,15 +469,36 @@ def generate_synthetic_combined(
         name='synthetic_combined'
     )
     
-    # Generate HTML report
+    # Build scenario breakdown string
+    scenario_breakdown = " + ".join(
+        f"{s['name']}: {s['days']}d" for s in scenario_info
+    )
+    total_days = sum(s['days'] for s in scenario_info)
+    
+    # Generate HTML report with clear filename
     try:
-        output_file = output_path / "combined_oos_synthetic.html"
+        output_file = output_path / "combined_oos_synthetic_VISUAL_ONLY.html"
         generate_tearsheet(
             returns=synthetic_series,
             benchmark=None,
-            title="Synthetic Combined OOS (No Calendar Gaps)",
+            title=f"⚠️ SYNTHETIC Combined OOS ({total_days} days stitched)",
             output_path=str(output_file)
         )
+        
+        # Inject warning banner into the HTML
+        warning_html = f"""
+<div style="background-color: #fff3cd; border: 2px solid #ffc107; 
+            padding: 15px; margin: 20px; border-radius: 5px; font-family: Arial, sans-serif;">
+    <strong style="font-size: 16px;">⚠️ SYNTHETIC TIME SERIES - VISUAL ONLY</strong><br><br>
+    This report stitches {len(scenario_info)} stress scenarios into a continuous series:<br>
+    <code style="background: #f8f9fa; padding: 3px 6px; border-radius: 3px;">{scenario_breakdown} = {total_days} days</code><br><br>
+    <strong>Dates shown are artificial</strong> (starting 2000-01-01) for visualization only.<br>
+    Do <strong>NOT</strong> use for duration-based metrics (CAGR annualization, DD duration, EOY returns).<br><br>
+    For actual per-scenario metrics, see: <code>combined_scoreboard.csv</code>
+</div>
+"""
+        _inject_warning_banner(output_file, warning_html)
+        
         logging.info(f"[OK] Synthetic combined report: {output_file}")
         
         return synthetic_series
@@ -503,7 +604,8 @@ def generate_regime_tearsheet(
     print(" ")
     print(" For proper interpretation, use:")
     print(f"   - {output_dir}/combined_scoreboard.csv (metrics per scenario)")
-    print(f"   - {output_dir}/combined_oos_synthetic.html (no calendar gaps)")
+    print(f"   - {output_dir}/combined_oos_synthetic_VISUAL_ONLY.html")
+    print("     (stitched for visualization, synthetic dates)")
     print(f"{'='*70}")
     
     print(f"\nQuantStats reports generated in {output_dir}/")

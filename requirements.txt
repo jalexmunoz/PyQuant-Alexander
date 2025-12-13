@@ -57,10 +57,10 @@ openai>=1.0.0                 # OpenAI API client (for AI summary features)
 # pytz>=2023.3                # Timezone handling
 
 # ============================================================================
-# DEVELOPMENT TOOLS (Optional)
+# DEVELOPMENT TOOLS (Required for testing)
 # ============================================================================
-# pytest>=7.4.0               # Unit testing
-# pytest-cov>=4.1.0           # Coverage reports
+pytest>=7.4.0                 # Unit testing (REQUIRED - run: pytest tests/)
+# pytest-cov>=4.1.0           # Coverage reports (optional)
 # black>=23.0.0               # Code formatting
 # ruff>=0.1.0                 # Fast linting
 # ipython>=8.0.0              # Interactive Python shell
