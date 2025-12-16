@@ -29,6 +29,10 @@ quantstats>=0.0.62            # Professional performance tear sheets
 # === AI/LLM ===
 openai>=1.0.0                 # OpenAI API client (for AI summary features)
 
+# Agrega gunicorn para producción
+flask>=2.3.0
+gunicorn>=21.2.0
+
 # ============================================================================
 # DEPENDENCIAS OPCIONALES
 # ============================================================================

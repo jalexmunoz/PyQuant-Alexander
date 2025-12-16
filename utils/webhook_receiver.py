@@ -1,4 +1,4 @@
-# utils/webhook_receiver.py (VERSIÓN MEJORADA)
+# utils/webhook_receiver.py (VERSIÓN PRODUCTION-READY)
 
 from flask import Flask, request, jsonify
 import json
@@ -8,10 +8,10 @@ import hashlib
 
 app = Flask(__name__)
 
-# SHARED SECRET (genera uno random)
-WEBHOOK_SECRET = "pyquant_shadow_2025_xyz123"  # Cámbialo
+# SHARED SECRET
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "pyquant_shadow_2025_xyz123")
 
-# Asegurar que existen directorios
+# Asegurar directorios
 os.makedirs("Output/webhooks", exist_ok=True)
 os.makedirs("Output/shadow", exist_ok=True)
 
@@ -38,6 +38,17 @@ def load_events_today():
                 pass
     return events
 
+# ============ HEALTH CHECK (NUEVO) ============
+@app.route('/', methods=['GET', 'HEAD'])
+def health_check():
+    """Health check endpoint for Render"""
+    return jsonify({
+        "status": "ok",
+        "service": "pyquant-webhooks",
+        "version": "1.0.0"
+    }), 200
+
+# ============ WEBHOOK ENDPOINT ============
 @app.route('/tradingview', methods=['POST'])
 def tv_webhook():
     try:
@@ -60,7 +71,7 @@ def tv_webhook():
         clean_data = {
             "ticker": data.get('ticker'),
             "signal": data.get('signal'),
-            "event_type": data.get('event_type', 'cross'),  # 'cross' or 'snapshot'
+            "event_type": data.get('event_type', 'cross'),
             "time": data.get('time'),
             "event_id": event_id,
             "received_at": datetime.now().isoformat()
@@ -93,4 +104,6 @@ def tv_webhook():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # Obtener puerto de environment variable (Render lo pasa)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
