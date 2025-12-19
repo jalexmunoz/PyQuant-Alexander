@@ -52,7 +52,13 @@ def health_check():
 @app.route('/tradingview', methods=['POST'])
 def tv_webhook():
     try:
+        # LOG REQUEST COMPLETO
+        print(f"[DEBUG] Headers: {dict(request.headers)}")
+        print(f"[DEBUG] Content-Type: {request.content_type}")
+        print(f"[DEBUG] Raw data: {request.data}")
+        
         data = request.json
+        print(f"[DEBUG] Parsed JSON: {data}")
         
         # 1. VALIDAR SECRET
         if data.get('secret') != WEBHOOK_SECRET:
@@ -100,7 +106,9 @@ def tv_webhook():
         return jsonify({"status": "ok", "event_id": event_id}), 200
         
     except Exception as e:
-        print(f"[ERROR] {e}")
+        print(f"[ERROR] Exception: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
