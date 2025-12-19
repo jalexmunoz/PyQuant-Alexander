@@ -109,6 +109,7 @@ def tv_webhook():
         # 4. LOG EVENTO
         today = datetime.now().date()
         log_file = f"Output/webhooks/events_{today}.json"
+        print(f"[DEBUG] Clean data before logging: {json.dumps(clean_data, indent=2)}")
         
         with open(log_file, 'a') as f:
             f.write(json.dumps(clean_data) + "\n")
