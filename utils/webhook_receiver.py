@@ -52,17 +52,22 @@ def health_check():
 @app.route('/tradingview', methods=['POST'])
 def tv_webhook():
     try:
-        # LOG REQUEST COMPLETO
-        print(f"[DEBUG] Headers: {dict(request.headers)}")
+        # LOG REQUEST
         print(f"[DEBUG] Content-Type: {request.content_type}")
-        print(f"[DEBUG] Raw data: {request.data}")
+        print(f"[DEBUG] Raw data: {request.data.decode('utf-8')}")
         
-        data = request.json
-        print(f"[DEBUG] Parsed JSON: {data}")
+        # PARSE JSON (tolerante a diferentes content types)
+        if request.is_json:
+            data = request.json
+        else:
+            # TradingView a veces manda text/plain si JSON tiene errores
+            data = json.loads(request.data.decode('utf-8'))
+        
+        print(f"[DEBUG] Parsed data: {data}")
         
         # 1. VALIDAR SECRET
         if data.get('secret') != WEBHOOK_SECRET:
-            print(f"[REJECT] Invalid secret from {request.remote_addr}")
+            print(f"[REJECT] Invalid secret")
             return jsonify({"error": "Unauthorized"}), 403
         
         # 2. DEDUPLICACIÓN
@@ -94,6 +99,13 @@ def tv_webhook():
             else:
                 clean_data[field] = None
         
+        # Si es snapshot, calcular señal real
+        if clean_data['event_type'] == 'snapshot':
+            sma50 = clean_data.get('sma50')
+            sma200 = clean_data.get('sma200')
+            if sma50 and sma200:
+                clean_data['signal'] = 'ON' if sma50 > sma200 else 'OFF'
+        
         # 4. LOG EVENTO
         today = datetime.now().date()
         log_file = f"Output/webhooks/events_{today}.json"
@@ -104,6 +116,11 @@ def tv_webhook():
         print(f"[WEBHOOK] {clean_data['event_type'].upper()}: {clean_data['ticker']} = {clean_data.get('signal', 'snapshot')}")
         
         return jsonify({"status": "ok", "event_id": event_id}), 200
+        
+    except json.JSONDecodeError as e:
+        print(f"[ERROR] Invalid JSON: {e}")
+        print(f"[ERROR] Raw data was: {request.data}")
+        return jsonify({"error": "Invalid JSON"}), 400
         
     except Exception as e:
         print(f"[ERROR] Exception: {type(e).__name__}: {str(e)}")
