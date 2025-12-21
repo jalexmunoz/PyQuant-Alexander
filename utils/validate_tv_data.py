@@ -24,24 +24,14 @@ def validate_export():
             continue
         
         df = pd.read_csv(filepath)
-        
-        # Check if 'datetime' column exists (TradingView export format)
-        if 'datetime' in df.columns:
-            time_col = 'datetime'
-        elif 'time' in df.columns:
-            time_col = 'time'
-        else:
-            print(f"❌ {filename}: No 'datetime' or 'time' column found. Columns: {df.columns.tolist()}")
-            continue
-        
-        df[time_col] = pd.to_datetime(df[time_col])
+        df['time'] = pd.to_datetime(df['time'])
         
         # Checks
-        min_date = df[time_col].min()
-        max_date = df[time_col].max()
+        min_date = df['time'].min()
+        max_date = df['time'].max()
         num_rows = len(df)
-        duplicates = df.duplicated(subset=[time_col]).sum()
-        gaps = (df[time_col].diff() > pd.Timedelta(days=2)).sum()
+        duplicates = df.duplicated(subset=['time']).sum()
+        gaps = (df['time'].diff() > pd.Timedelta(days=2)).sum()
         
         print(f"\n✅ {filename}")
         print(f"  Range: {min_date.date()} to {max_date.date()}")

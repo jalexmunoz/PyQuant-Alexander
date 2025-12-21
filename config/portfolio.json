@@ -1,0 +1,31 @@
+{
+  "equity_curve": 1.0,
+  "positions": {
+    "BTCUSDT": {
+      "status": "OFF",
+      "entry_price": null,
+      "entry_date": null,
+      "weight": 0.0
+    },
+    "ETHUSDT": {
+      "status": "OFF",
+      "entry_price": null,
+      "entry_date": null,
+      "weight": 0.0
+    },
+    "SOLUSDT": {
+      "status": "OFF",
+      "entry_price": null,
+      "entry_date": null,
+      "weight": 0.0
+    },
+    "LINKUSDT": {
+      "status": "OFF",
+      "entry_price": null,
+      "entry_date": null,
+      "weight": 0.0
+    }
+  },
+  "last_updated": "2025-12-21T17:34:16.566654",
+  "notes": "Shadow mode - Day 355"
+}

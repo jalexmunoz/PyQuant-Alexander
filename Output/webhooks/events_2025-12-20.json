@@ -1,0 +1,42 @@
+[
+  {
+    "secret": "pyquant_shadow_2025_xyz123",
+    "ticker": "BTCUSDT",
+    "signal": "ON",
+    "event_type": "daily_snapshot",
+    "price": 97234.56,
+    "sma50": 93595.20,
+    "sma200": 108000.10,
+    "time": "2025-12-20T00:00:00Z"
+  },
+  {
+    "secret": "pyquant_shadow_2025_xyz123",
+    "ticker": "ETHUSDT",
+    "signal": "ON",
+    "event_type": "daily_snapshot",
+    "price": 3421.34,
+    "sma50": 3144.21,
+    "sma200": 3570.97,
+    "time": "2025-12-20T00:00:00Z"
+  },
+  {
+    "secret": "pyquant_shadow_2025_xyz123",
+    "ticker": "SOLUSDT",
+    "signal": "ON",
+    "event_type": "daily_snapshot",
+    "price": 189.45,
+    "sma50": 141.35,
+    "sma200": 174.80,
+    "time": "2025-12-20T00:00:00Z"
+  },
+  {
+    "secret": "pyquant_shadow_2025_xyz123",
+    "ticker": "LINKUSDT",
+    "signal": "ON",
+    "event_type": "daily_snapshot",
+    "price": 22.78,
+    "sma50": 13.89,
+    "sma200": 17.64,
+    "time": "2025-12-20T00:00:00Z"
+  }
+]

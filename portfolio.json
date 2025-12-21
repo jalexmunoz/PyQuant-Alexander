@@ -1,0 +1,36 @@
+{
+  "version": "v0.1-shadow-beta",
+  "last_updated": "2025-12-20",
+  "assets": {
+    "BTCUSDT": {
+      "symbol": "BTC",
+      "weight": 0.40,
+      "position": "ON",
+      "entry_price": null,
+      "entry_date": null
+    },
+    "ETHUSDT": {
+      "symbol": "ETH",
+      "weight": 0.40,
+      "position": "ON",
+      "entry_price": null,
+      "entry_date": null
+    },
+    "SOLUSDT": {
+      "symbol": "SOL",
+      "weight": 0.15,
+      "position": "ON",
+      "entry_price": null,
+      "entry_date": null
+    },
+    "LINKUSDT": {
+      "symbol": "LINK",
+      "weight": 0.05,
+      "position": "ON",
+      "entry_price": null,
+      "entry_date": null
+    }
+  },
+  "equity_curve": 1.0,
+  "notes": "Shadow mode - no real capital deployed"
+}
