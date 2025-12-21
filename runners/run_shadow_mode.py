@@ -13,7 +13,7 @@ import logging
 import sys
 import argparse
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Dict, List, Optional, Any
 
 # Add project root to path
@@ -491,8 +491,13 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
     # Prepare output
     output = {
         "date": date_str,
-        "portfolio_equity": equity_end,
+        "run_metadata": {
+            "run_time_utc": datetime.now(timezone.utc).isoformat(),
+            "run_time_local": datetime.now().isoformat(),
+            "timezone": "America/New_York"
+        },
         "decisions": decisions,
+        "portfolio_equity": equity_end,
         "notes": f"Shadow mode - Day {target_date.strftime('%j')}"
     }
     
