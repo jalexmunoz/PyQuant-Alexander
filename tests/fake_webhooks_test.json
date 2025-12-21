@@ -1,0 +1,32 @@
+[
+  {
+    "secret": "pyquant_shadow_2025_xyz123",
+    "ticker": "BTCUSDT",
+    "signal": "ON",
+    "event_type": "cross",
+    "price": 110000.00,
+    "sma50": 110500.00,
+    "sma200": 109000.00,
+    "time": "2025-12-22T00:00:00Z"
+  },
+  {
+    "secret": "WRONG_SECRET_INVALID",
+    "ticker": "ETHUSDT",
+    "signal": "ON",
+    "event_type": "daily_snapshot",
+    "price": 3500.00,
+    "sma50": 3400.00,
+    "sma200": 3600.00,
+    "time": "2025-12-22T00:00:00Z"
+  },
+  {
+    "secret": "pyquant_shadow_2025_xyz123",
+    "ticker": "BTCUSDT",
+    "signal": "ON",
+    "event_type": "cross",
+    "price": 110000.00,
+    "sma50": 110500.00,
+    "sma200": 109000.00,
+    "time": "2025-12-22T00:00:00Z"
+  }
+]
