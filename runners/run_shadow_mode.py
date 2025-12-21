@@ -21,6 +21,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from core.strategies.trend_filter_strategy import BASE_TARGETS
+from utils.heartbeat import write_heartbeat
 
 # Setup logging
 logging.basicConfig(
@@ -37,6 +38,38 @@ WEBHOOK_DIR = Path("Output/webhooks")
 SHADOW_OUTPUT_DIR = Path("Output/shadow")
 
 ASSETS = list(BASE_TARGETS.keys())
+
+
+# =============================================================================
+# VALIDATION
+# =============================================================================
+
+def validate_event_data(event: dict) -> bool:
+    """Validate event data quality. Returns True if valid, False if invalid."""
+    ticker = event.get("ticker")
+    event_type = event.get("event_type")
+    
+    if not ticker or not event_type:
+        logging.warning(f"Missing required fields: ticker={ticker}, event_type={event_type}")
+        return False
+    
+    if event_type == "daily_snapshot":
+        price = event.get("price")
+        sma50 = event.get("sma50")
+        sma200 = event.get("sma200")
+        
+        for field_name, field_value in [("price", price), ("sma50", sma50), ("sma200", sma200)]:
+            if field_value is None:
+                logging.warning(f"{ticker}: Missing {field_name}")
+                return False
+            if not isinstance(field_value, (int, float)):
+                logging.warning(f"{ticker}: Invalid {field_name} type")
+                return False
+            if field_value <= 0:
+                logging.warning(f"{ticker}: {field_name} must be positive")
+                return False
+    
+    return True
 
 
 # =============================================================================
@@ -140,6 +173,7 @@ def load_webhook_events(target_date: date) -> List[Dict[str, Any]]:
             try:
                 events = json.loads(content)
                 if isinstance(events, list):
+                    events = [e for e in events if validate_event_data(e)]
                     logging.info(f"Loaded {len(events)} events (JSON array format) from {webhook_file}")
                     return events
             except json.JSONDecodeError:
@@ -152,7 +186,8 @@ def load_webhook_events(target_date: date) -> List[Dict[str, Any]]:
             if line:
                 try:
                     event = json.loads(line)
-                    events.append(event)
+                    if validate_event_data(event):
+                        events.append(event)
                 except json.JSONDecodeError as e:
                     logging.warning(f"Skipping invalid JSON line: {e}")
                     continue
@@ -473,6 +508,39 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
     
     save_portfolio(portfolio)
     logging.info(f"Portfolio updated: {PORTFOLIO_CONFIG}")
+    
+    # === HEARTBEAT TRACKING ===
+    assets_data = {}
+    for ticker in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "LINKUSDT"]:
+        decision = decisions.get(ticker)
+        
+        if decision and isinstance(decision, dict):
+            snapshot = decision.get("snapshot")
+            if snapshot and isinstance(snapshot, dict):
+                assets_data[ticker] = {
+                    "snapshot_received": True,
+                    "price": snapshot.get("price"),
+                    "action": decision.get("action", "UNKNOWN")
+                }
+            else:
+                assets_data[ticker] = {
+                    "snapshot_received": False,
+                    "price": None,
+                    "action": decision.get("action", "UNKNOWN")
+                }
+        else:
+            assets_data[ticker] = {
+                "snapshot_received": False,
+                "price": None,
+                "action": "UNKNOWN"
+            }
+    
+    write_heartbeat(
+        status="SUCCESS",
+        events_processed=len(events),
+        assets_data=assets_data
+    )
+    # === END HEARTBEAT ===
 
 
 # =============================================================================
