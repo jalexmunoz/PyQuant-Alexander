@@ -1,290 +1,484 @@
 # runners/run_shadow_mode.py
-# v1.0.0 - Shadow Mode Daily Runner
+# v2.0.0 - Shadow Mode Validation Runner
 #
-# Purpose: Run Strategy 1 signals daily for shadow validation.
-# NO actual trading - observation only.
+# Purpose: Process webhook signals and generate shadow mode decisions.
+# Phase 1 of 90-day out-of-sample validation before live capital deployment.
 #
-# Usage: python runners/run_shadow_mode.py
+# Usage:
+#   python runners/run_shadow_mode.py              # Use today
+#   python runners/run_shadow_mode.py --date 2025-12-19  # Backtest specific day
 
+import json
+import logging
 import sys
+import argparse
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, Optional, List
-
-import pandas as pd
-import numpy as np
+from datetime import datetime, date
+from typing import Dict, List, Optional, Any
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from core.strategies.trend_filter_strategy import (
-    BASE_TARGETS,
-    SMA_SHORT,
-    SMA_LONG,
-    TREND_ON,
-    TREND_OFF,
+from core.strategies.trend_filter_strategy import BASE_TARGETS
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s: %(message)s'
 )
-from utils.data_fetcher import get_tradingview_ohlc
-from utils.shadow_logger import ShadowLogger, SuggestedTrade
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
-ASSETS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "LINKUSDT"]
-PORTFOLIO_FILE = Path("Docs/portfolio_hot.csv")
-USE_CACHE = False  # Always fetch fresh data for shadow mode
+PORTFOLIO_CONFIG = Path("config/portfolio.json")
+WEBHOOK_DIR = Path("Output/webhooks")
+SHADOW_OUTPUT_DIR = Path("Output/shadow")
+
+ASSETS = list(BASE_TARGETS.keys())
 
 
 # =============================================================================
-# DATA FUNCTIONS
+# DATA STRUCTURES
 # =============================================================================
 
-def fetch_prices_and_smas() -> tuple[Dict[str, float], Dict[str, Dict[str, float]], bool]:
+def get_default_portfolio() -> Dict[str, Any]:
+    """Get default portfolio structure."""
+    return {
+        "equity_curve": 1.0,
+        "positions": {
+            asset: {
+                "status": "OFF",
+                "entry_price": None,
+                "entry_date": None,
+                "weight": 0.0
+            }
+            for asset in ASSETS
+        },
+        "last_updated": None,
+        "notes": "Shadow mode - Day 0"
+    }
+
+
+# =============================================================================
+# FILE I/O
+# =============================================================================
+
+def load_portfolio() -> Dict[str, Any]:
     """
-    Fetch latest prices and calculate SMAs for all assets.
+    Load portfolio state from config/portfolio.json.
     
     Returns:
-        Tuple of (prices_dict, sma_dict, success)
-        - prices_dict: {symbol: close_price}
-        - sma_dict: {symbol: {'sma50': value, 'sma200': value}}
-        - success: True if all fetches succeeded
-    """
-    prices = {}
-    smas = {}
-    
-    for symbol in ASSETS:
-        try:
-            df = get_tradingview_ohlc(
-                symbol=symbol,
-                exchange="BINANCE",
-                n_bars=250,  # Need 200+ for SMA200
-                use_cache=USE_CACHE
-            )
-            
-            if df is None or df.empty:
-                print(f"  [ERROR] No data for {symbol}")
-                return {}, {}, False
-            
-            # Get latest close
-            latest_close = float(df['close'].iloc[-1])
-            prices[symbol] = latest_close
-            
-            # Calculate SMAs
-            sma50 = float(df['close'].rolling(SMA_SHORT).mean().iloc[-1])
-            sma200 = float(df['close'].rolling(SMA_LONG).mean().iloc[-1])
-            
-            smas[symbol] = {'sma50': sma50, 'sma200': sma200}
-            
-        except Exception as e:
-            print(f"  [ERROR] Failed to fetch {symbol}: {e}")
-            return {}, {}, False
-    
-    return prices, smas, True
-
-
-def calculate_signals(smas: Dict[str, Dict[str, float]]) -> Dict[str, int]:
-    """
-    Calculate Strategy 1 signals based on SMA crossover.
-    
-    Signal = 1 (ON) if SMA50 > SMA200, else 0 (OFF)
-    """
-    signals = {}
-    
-    for symbol in ASSETS:
-        sma_data = smas.get(symbol, {})
-        sma50 = sma_data.get('sma50', 0)
-        sma200 = sma_data.get('sma200', 0)
+        Portfolio dictionary
         
-        signals[symbol] = TREND_ON if sma50 > sma200 else TREND_OFF
-    
-    return signals
-
-
-def calculate_targets(signals: Dict[str, int]) -> Dict[str, float]:
+    Raises:
+        SystemExit: If file is corrupted or invalid
     """
-    Calculate target weights based on signals.
-    
-    Target = base_weight if signal ON, else 0
-    """
-    targets = {}
-    
-    for symbol in ASSETS:
-        base_weight = BASE_TARGETS.get(symbol, 0.0)
-        signal = signals.get(symbol, 0)
-        targets[symbol] = base_weight if signal == TREND_ON else 0.0
-    
-    return targets
-
-
-def load_current_portfolio() -> Dict[str, float]:
-    """
-    Load current portfolio weights from Docs/portfolio_hot.csv.
-    
-    Returns base targets if file doesn't exist.
-    
-    Expected CSV format:
-        symbol,weight
-        BTCUSDT,0.40
-        ETHUSDT,0.40
-        ...
-    """
-    if not PORTFOLIO_FILE.exists():
-        print(f"  [INFO] {PORTFOLIO_FILE} not found, using base targets")
-        return BASE_TARGETS.copy()
+    if not PORTFOLIO_CONFIG.exists():
+        logging.warning(f"Portfolio config not found, creating default: {PORTFOLIO_CONFIG}")
+        portfolio = get_default_portfolio()
+        save_portfolio(portfolio)
+        return portfolio
     
     try:
-        df = pd.read_csv(PORTFOLIO_FILE)
-        portfolio = {}
+        with open(PORTFOLIO_CONFIG, 'r') as f:
+            portfolio = json.load(f)
         
-        for _, row in df.iterrows():
-            symbol = row.get('symbol', '')
-            weight = float(row.get('weight', 0))
-            if symbol in ASSETS:
-                portfolio[symbol] = weight
-        
-        # Fill missing assets with 0
-        for symbol in ASSETS:
-            if symbol not in portfolio:
-                portfolio[symbol] = 0.0
+        # Validate structure
+        if 'positions' not in portfolio or 'equity_curve' not in portfolio:
+            raise ValueError("Invalid portfolio structure")
         
         return portfolio
         
+    except json.JSONDecodeError as e:
+        logging.error(f"Corrupted portfolio.json: {e}")
+        sys.exit(1)
     except Exception as e:
-        print(f"  [WARN] Failed to read {PORTFOLIO_FILE}: {e}")
-        return BASE_TARGETS.copy()
+        logging.error(f"Failed to load portfolio: {e}")
+        sys.exit(1)
 
 
-def calculate_suggested_trades(
-    targets: Dict[str, float],
-    current: Dict[str, float],
-    threshold: float = 0.01
-) -> List[SuggestedTrade]:
+def save_portfolio(portfolio: Dict[str, Any]) -> None:
+    """Save portfolio state to config/portfolio.json."""
+    PORTFOLIO_CONFIG.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(PORTFOLIO_CONFIG, 'w') as f:
+        json.dump(portfolio, f, indent=2)
+
+
+def load_webhook_events(target_date: date) -> List[Dict[str, Any]]:
     """
-    Calculate suggested trades to align portfolio with targets.
+    Load webhook events from file for given date.
     
     Parameters:
-        targets: Target weights
-        current: Current portfolio weights
-        threshold: Minimum difference to suggest trade (1% default)
+        target_date: Date to load events for
+        
+    Returns:
+        List of event dictionaries, empty list if file not found or invalid
+    """
+    webhook_file = WEBHOOK_DIR / f"events_{target_date.strftime('%Y-%m-%d')}.json"
+    
+    if not webhook_file.exists():
+        logging.warning(f"Webhook file not found: {webhook_file}")
+        return []
+    
+    try:
+        with open(webhook_file, 'r', encoding='utf-8') as f:
+            events = json.load(f)  # Read as JSON array, not line-by-line
+            
+        if not isinstance(events, list):
+            logging.error(f"Webhook file is not a JSON array: {webhook_file}")
+            return []
+            
+        logging.info(f"Loaded {len(events)} events from {webhook_file}")
+        return events
+        
+    except json.JSONDecodeError as e:
+        logging.error(f"Invalid JSON in webhook file: {e}")
+        return []
+    except Exception as e:
+        logging.error(f"Error reading webhook file: {e}")
+        return []
+
+
+def save_decisions(decisions: Dict[str, Any], target_date: date) -> Path:
+    """
+    Save decisions to Output/shadow/decisions_YYYY-MM-DD.json.
     
     Returns:
-        List of SuggestedTrade objects
+        Path to saved file
     """
-    trades = []
+    SHADOW_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
-    for symbol in ASSETS:
-        target_w = targets.get(symbol, 0.0)
-        current_w = current.get(symbol, 0.0)
-        diff = target_w - current_w
+    output_file = SHADOW_OUTPUT_DIR / f"decisions_{target_date.strftime('%Y-%m-%d')}.json"
+    
+    with open(output_file, 'w') as f:
+        json.dump(decisions, f, indent=2)
+    
+    return output_file
+
+
+# =============================================================================
+# EVENT PROCESSING
+# =============================================================================
+
+def filter_events_by_asset(events: List[Dict[str, Any]], ticker: str) -> List[Dict[str, Any]]:
+    """Filter events for a specific asset ticker."""
+    return [e for e in events if e.get('ticker') == ticker]
+
+
+def get_cross_event(events: List[Dict[str, Any]], direction: str) -> Optional[Dict[str, Any]]:
+    """
+    Get latest cross event of specified direction.
+    
+    Parameters:
+        events: List of events for an asset
+        direction: 'ON' or 'OFF'
         
-        if abs(diff) >= threshold:
-            action = "BUY" if diff > 0 else "SELL"
-            trades.append(SuggestedTrade(
-                asset=symbol.replace("USDT", ""),
-                action=action,
-                amount=abs(diff),
-                reason=f"Target {target_w*100:.0f}% vs Current {current_w*100:.0f}%"
-            ))
+    Returns:
+        Latest cross event, or None if not found
+    """
+    cross_events = [
+        e for e in events
+        if e.get('event_type') == 'cross' and e.get('signal') == direction
+    ]
     
-    return trades
+    if not cross_events:
+        return None
+    
+    # Sort by time, return latest
+    cross_events.sort(key=lambda x: x.get('time', ''), reverse=True)
+    return cross_events[0]
+
+
+def get_snapshot_event(events: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Get latest snapshot event."""
+    snapshots = [e for e in events if e.get('event_type') == 'snapshot']
+    
+    if not snapshots:
+        return None
+    
+    snapshots.sort(key=lambda x: x.get('time', ''), reverse=True)
+    return snapshots[0]
+
+
+# =============================================================================
+# DECISION LOGIC
+# =============================================================================
+
+def process_asset_decision(
+    ticker: str,
+    asset_events: List[Dict[str, Any]],
+    current_position: Dict[str, Any],
+    weights: Dict[str, float]
+) -> Dict[str, Any]:
+    """
+    Process decision logic for a single asset.
+    
+    Parameters:
+        ticker: Asset ticker (e.g., 'BTCUSDT')
+        asset_events: All events for this asset
+        current_position: Current position state
+        weights: Asset weights dictionary
+        
+    Returns:
+        Decision dictionary
+    """
+    decision = {
+        "action": "HOLD",
+        "reason": "No cross event today",
+        "position": current_position["status"],
+        "weight": weights.get(ticker, 0.0),
+        "snapshot": None
+    }
+    
+    # Get snapshot data if available
+    snapshot = get_snapshot_event(asset_events)
+    if snapshot:
+        decision["snapshot"] = {
+            "price": snapshot.get('price'),
+            "sma50": snapshot.get('sma50'),
+            "sma200": snapshot.get('sma200')
+        }
+    
+    # Check for cross ON event
+    cross_on = get_cross_event(asset_events, 'ON')
+    if cross_on:
+        if current_position["status"] == "OFF":
+            decision["action"] = "BUY"
+            decision["reason"] = "SMA50 crossed above SMA200"
+            decision["position"] = "ON"
+            # Use price from cross event or snapshot for entry
+            entry_price = cross_on.get('price') or (snapshot.get('price') if snapshot else None)
+            if entry_price:
+                decision["entry_price"] = entry_price
+            return decision
+        else:
+            decision["action"] = "HOLD"
+            decision["reason"] = "Already in position"
+            return decision
+    
+    # Check for cross OFF event
+    cross_off = get_cross_event(asset_events, 'OFF')
+    if cross_off:
+        if current_position["status"] == "ON":
+            decision["action"] = "SELL"
+            decision["reason"] = "SMA50 crossed below SMA200"
+            decision["position"] = "OFF"
+            
+            # Store exit price from cross event or snapshot
+            exit_price = cross_off.get('price') or (snapshot.get('price') if snapshot else None)
+            if exit_price and current_position.get("entry_price"):
+                decision["exit_price"] = exit_price
+                decision["entry_price"] = current_position["entry_price"]
+            return decision
+        else:
+            decision["action"] = "HOLD"
+            decision["reason"] = "Already out of position"
+            return decision
+    
+    return decision
+
+
+def print_summary(decisions: Dict[str, Any], old_equity: float, new_equity: float) -> None:
+    """Print formatted summary table."""
+    print("\nAsset      Action  Reason                Position  Price")
+    print("─────────  ──────  ────────────────────  ────────  ────────")
+    
+    for ticker, decision in decisions.items():
+        # Handle None decision (no webhook data)
+        if decision is None:
+            print(f"{ticker:10} {'HOLD':6}  {'No webhook data':20}  {'--':8}  {'--':8}")
+            continue
+            
+        action = decision.get("action", "HOLD")
+        reason = decision.get("reason", "Unknown")[:20]
+        position = decision.get("position", "--")
+        
+        # Safely get price from snapshot
+        snapshot = decision.get("snapshot", {})
+        price = snapshot.get("price") if snapshot else None
+        price_str = f"{price:,.2f}" if price else "--"
+        
+        print(f"{ticker:10} {action:6}  {reason:20}  {position:8}  {price_str:>8}")
+    
+    equity_change = ((new_equity / old_equity) - 1) * 100 if old_equity > 0 else 0
+    print(f"\nPortfolio Equity: {old_equity:.4f} → {new_equity:.4f} ({equity_change:+.2f}%)")
+
+
+def calculate_equity_update(
+    portfolio: Dict[str, Any],
+    decisions: Dict[str, Dict[str, Any]],
+    weights: Dict[str, float]
+) -> float:
+    """
+    Calculate equity curve update from SELL decisions.
+    
+    Parameters:
+        portfolio: Current portfolio state
+        decisions: All asset decisions
+        weights: Asset weights
+        
+    Returns:
+        New equity curve value
+    """
+    equity = portfolio["equity_curve"]
+    
+    for ticker, decision in decisions.items():
+        if decision is None:
+            continue
+        if decision.get("action") == "SELL":
+            entry_price = decision.get("entry_price")
+            exit_price = decision.get("exit_price")
+            weight = weights.get(ticker, 0.0)
+            
+            if entry_price and exit_price and weight > 0:
+                return_value = (exit_price / entry_price) - 1.0
+                equity_update = 1 + (return_value * weight)
+                equity *= equity_update
+                logging.info(
+                    f"{ticker} SELL: entry={entry_price:.2f}, exit={exit_price:.2f}, "
+                    f"return={return_value*100:.2f}%, weight={weight*100:.0f}%"
+                )
+    
+    return equity
+
+
+def update_portfolio_positions(
+    portfolio: Dict[str, Any],
+    decisions: Dict[str, Dict[str, Any]],
+    target_date: str,
+    weights: Dict[str, float]
+) -> None:
+    """Update portfolio positions based on decisions."""
+    for ticker, decision in decisions.items():
+        if decision is None:
+            continue
+            
+        position = portfolio["positions"][ticker]
+        
+        if decision.get("action") == "BUY":
+            position["status"] = "ON"
+            # Use entry_price from decision (from cross event or snapshot)
+            entry_price = decision.get("entry_price")
+            if entry_price:
+                position["entry_price"] = entry_price
+            position["entry_date"] = target_date
+            position["weight"] = weights.get(ticker, 0.0)
+            
+        elif decision.get("action") == "SELL":
+            position["status"] = "OFF"
+            position["entry_price"] = None
+            position["entry_date"] = None
+            position["weight"] = 0.0
 
 
 # =============================================================================
 # MAIN RUNNER
 # =============================================================================
 
-def run_shadow_mode() -> bool:
+def run_shadow_mode(target_date: Optional[date] = None) -> None:
     """
-    Run shadow mode for today.
+    Main shadow mode processing function.
     
-    Returns True if successful.
+    Parameters:
+        target_date: Date to process (default: today)
     """
-    now = datetime.now()
-    date_str = now.strftime('%Y-%m-%d')
-    time_str = now.strftime('%H:%M')
+    if target_date is None:
+        target_date = date.today()
     
+    date_str = target_date.strftime('%Y-%m-%d')
+    
+    # Print header
+    print("╔════════════════════════════════════════╗")
+    print("║   PyQuant Alexander - Shadow Mode      ║")
+    print(f"║   Date: {date_str:<30} ║")
+    print("╚════════════════════════════════════════╝")
     print()
-    print("=" * 50)
-    print(f" SHADOW MODE - {date_str} {time_str}")
-    print("=" * 50)
     
-    # 1. Fetch data
-    print("\nFetching data...")
-    prices, smas, success = fetch_prices_and_smas()
+    # Load portfolio
+    portfolio = load_portfolio()
+    equity_start = portfolio["equity_curve"]
     
-    if not success:
-        print("\nData Fetch: FAILED")
-        print("Status: DATA_ERROR - Skipping signal generation")
-        print("=" * 50)
-        return False
+    # Load webhook events
+    events = load_webhook_events(target_date)
     
-    print("Data Fetch: OK")
+    # Use BASE_TARGETS for asset weights
+    weights = BASE_TARGETS.copy()
     
-    # 2. Calculate signals
-    signals = calculate_signals(smas)
+    # Process each asset
+    decisions = {}
     
-    print("\nSignals:")
-    for symbol in ASSETS:
-        signal = signals[symbol]
-        sma_data = smas[symbol]
-        signal_str = "ON " if signal == TREND_ON else "OFF"
-        compare = ">" if signal == TREND_ON else "<"
-        short_name = symbol.replace("USDT", "")
-        print(f"  {short_name}: {signal_str} (SMA{SMA_SHORT}: {sma_data['sma50']:.0f} {compare} SMA{SMA_LONG}: {sma_data['sma200']:.0f})")
-    
-    # 3. Calculate targets
-    targets = calculate_targets(signals)
-    total_exposure = sum(targets.values())
-    cash_weight = 1.0 - total_exposure
-    
-    print(f"\nTargets: ", end="")
-    target_strs = []
-    for symbol in ASSETS:
-        short_name = symbol.replace("USDT", "")
-        target_strs.append(f"{short_name} {targets[symbol]*100:.0f}%")
-    print(" | ".join(target_strs))
-    print(f"Exposure: {total_exposure*100:.0f}%")
-    
-    # 4. Load current portfolio and calculate suggested trades
-    current_portfolio = load_current_portfolio()
-    suggested_trades = calculate_suggested_trades(targets, current_portfolio)
-    
-    print(f"\nSuggested Trades: ", end="")
-    if suggested_trades:
-        print()
-        for trade in suggested_trades:
-            print(f"  {trade.action} {trade.asset}: {trade.amount*100:.1f}%")
-    else:
-        print("None (already aligned)")
-    
-    # 5. Log to CSV
-    print()
-    try:
-        logger = ShadowLogger()
-        log_path = logger.log_from_data(
-            prices=prices,
-            signals=signals,
-            sma_values=smas,
-            base_weights=BASE_TARGETS,
-            suggested_trades=suggested_trades if suggested_trades else None
+    for ticker in ASSETS:
+        asset_events = filter_events_by_asset(events, ticker)
+        current_position = portfolio["positions"][ticker]
+        
+        decision = process_asset_decision(
+            ticker=ticker,
+            asset_events=asset_events,
+            current_position=current_position,
+            weights=weights
         )
-        print(f"Logged: {log_path}")
-    except Exception as e:
-        print(f"[ERROR] Failed to write log: {e}")
+        
+        decisions[ticker] = decision
     
-    print("=" * 50)
+    # Calculate equity update
+    equity_end = calculate_equity_update(portfolio, decisions, weights)
+    
+    # Print summary table
+    print_summary(decisions, equity_start, equity_end)
     print()
     
-    return True
+    # Prepare output
+    output = {
+        "date": date_str,
+        "portfolio_equity": equity_end,
+        "decisions": decisions,
+        "notes": f"Shadow mode - Day {target_date.strftime('%j')}"
+    }
+    
+    # Save decisions
+    output_path = save_decisions(output, target_date)
+    logging.info(f"Decisions saved: {output_path}")
+    
+    # Update portfolio
+    portfolio["equity_curve"] = equity_end
+    update_portfolio_positions(portfolio, decisions, date_str, weights)
+    portfolio["last_updated"] = datetime.now().isoformat()
+    portfolio["notes"] = output["notes"]
+    
+    save_portfolio(portfolio)
+    logging.info(f"Portfolio updated: {PORTFOLIO_CONFIG}")
 
 
 # =============================================================================
-# MAIN
+# CLI
 # =============================================================================
 
-if __name__ == "__main__":
-    success = run_shadow_mode()
-    sys.exit(0 if success else 1)
+def main():
+    """CLI entry point."""
+    parser = argparse.ArgumentParser(
+        description="PyQuant Alexander Shadow Mode Validation Runner"
+    )
+    parser.add_argument(
+        '--date',
+        type=str,
+        help='Date to process (YYYY-MM-DD), default: today'
+    )
+    
+    args = parser.parse_args()
+    
+    target_date = None
+    if args.date:
+        try:
+            target_date = datetime.strptime(args.date, '%Y-%m-%d').date()
+        except ValueError:
+            logging.error(f"Invalid date format: {args.date}. Use YYYY-MM-DD")
+            sys.exit(1)
+    
+    run_shadow_mode(target_date)
 
+
+if __name__ == '__main__':
+    main()
