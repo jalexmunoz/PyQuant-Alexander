@@ -462,6 +462,17 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
     # Load webhook events
     events = load_webhook_events(target_date)
     
+    # Extract snapshots from events
+    snapshot_data = {}
+    for event in events:
+        if event.get("event_type") == "daily_snapshot":
+            ticker = event.get("ticker")
+            snapshot_data[ticker] = {
+                "price": event.get("price"),
+                "sma50": event.get("sma50"),
+                "sma200": event.get("sma200")
+            }
+    
     # Use BASE_TARGETS for asset weights
     weights = BASE_TARGETS.copy()
     
@@ -488,6 +499,32 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
     print_summary(decisions, equity_start, equity_end)
     print()
     
+    # Build market_structure section
+    market_structure = {}
+    for ticker in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "LINKUSDT"]:
+        snapshot = snapshot_data.get(ticker, {})
+        
+        price = snapshot.get("price")
+        sma50 = snapshot.get("sma50")
+        sma200 = snapshot.get("sma200")
+        
+        # Calculate metrics
+        if sma50 and sma200 and sma200 != 0:
+            gap_pct = ((sma50 / sma200) - 1) * 100
+            signal = "ON" if sma50 > sma200 else "OFF"
+        else:
+            gap_pct = None
+            signal = "UNKNOWN"
+        
+        market_structure[ticker] = {
+            "price": price,
+            "sma50": sma50,
+            "sma200": sma200,
+            "gap_pct": round(gap_pct, 2) if gap_pct else None,
+            "signal": signal,
+            "days_since_last_cross": None
+        }
+    
     # Prepare output
     output = {
         "date": date_str,
@@ -496,6 +533,7 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
             "run_time_local": datetime.now().isoformat(),
             "timezone": "America/New_York"
         },
+        "market_structure": market_structure,
         "decisions": decisions,
         "portfolio_equity": equity_end,
         "notes": f"Shadow mode - Day {target_date.strftime('%j')}"
