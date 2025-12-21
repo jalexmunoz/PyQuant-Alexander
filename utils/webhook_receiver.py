@@ -1,6 +1,7 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 import json
 import os
+from pathlib import Path
 from datetime import datetime
 import hashlib
 
@@ -8,8 +9,11 @@ app = Flask(__name__)
 
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "pyquant_shadow_2025_xyz123")
 
-os.makedirs("Output/webhooks", exist_ok=True)
-os.makedirs("Output/shadow", exist_ok=True)
+# Get absolute path to project root (parent of utils/)
+PROJECT_ROOT = Path(__file__).parent.parent
+OUTPUT_DIR = PROJECT_ROOT / "Output" / "webhooks"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+(PROJECT_ROOT / "Output" / "shadow").mkdir(parents=True, exist_ok=True)
 
 def get_event_id(data):
     key = f"{data.get('ticker')}_{data.get('time')}_{data.get('signal')}"
@@ -17,8 +21,8 @@ def get_event_id(data):
 
 def load_events_today():
     today = datetime.now().date()
-    log_file = f"Output/webhooks/events_{today}.json"
-    if not os.path.exists(log_file):
+    log_file = OUTPUT_DIR / f"events_{today}.json"
+    if not log_file.exists():
         return set()
     events = set()
     with open(log_file, 'r') as f:
@@ -80,7 +84,7 @@ def tv_webhook():
         
         # Log evento
         today = datetime.now().date()
-        log_file = f"Output/webhooks/events_{today}.json"
+        log_file = OUTPUT_DIR / f"events_{today}.json"
         
         with open(log_file, 'a') as f:
             f.write(json.dumps(clean_data) + "\n")
@@ -94,6 +98,34 @@ def tv_webhook():
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+@app.route('/events/<date>', methods=['GET'])
+def download_events(date):
+    """
+    Download events file for specific date.
+    
+    Args:
+        date (str): Date in YYYY-MM-DD format
+        
+    Returns:
+        JSON file if exists, 404 error if not found
+    """
+    # Validate date format (basic check)
+    if len(date) != 10 or date[4] != '-' or date[7] != '-':
+        print(f"[ERROR] Invalid date format requested: {date}")
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Construct filepath
+    filepath = OUTPUT_DIR / f"events_{date}.json"
+    
+    # Check if file exists
+    if not filepath.exists():
+        print(f"[INFO] Events file not found: {filepath}")
+        return jsonify({"error": f"Events not found for date: {date}"}), 404
+    
+    # Return file
+    print(f"[INFO] Serving events file: {filepath}")
+    return send_file(filepath, mimetype='application/json', as_attachment=True, download_name=f"events_{date}.json")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
