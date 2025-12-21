@@ -111,6 +111,10 @@ def load_webhook_events(target_date: date) -> List[Dict[str, Any]]:
     """
     Load webhook events from file for given date.
     
+    Automatically detects and handles both formats:
+    - JSON array format: [{...}, {...}] (manual/test files)
+    - NDJSON format: one JSON per line (from webhook_receiver.py)
+    
     Parameters:
         target_date: Date to load events for
         
@@ -125,18 +129,37 @@ def load_webhook_events(target_date: date) -> List[Dict[str, Any]]:
     
     try:
         with open(webhook_file, 'r', encoding='utf-8') as f:
-            events = json.load(f)  # Read as JSON array, not line-by-line
-            
-        if not isinstance(events, list):
-            logging.error(f"Webhook file is not a JSON array: {webhook_file}")
+            content = f.read().strip()
+        
+        if not content:
+            logging.warning(f"Webhook file is empty: {webhook_file}")
             return []
-            
-        logging.info(f"Loaded {len(events)} events from {webhook_file}")
+        
+        # Try JSON array format first
+        if content.startswith('['):
+            try:
+                events = json.loads(content)
+                if isinstance(events, list):
+                    logging.info(f"Loaded {len(events)} events (JSON array format) from {webhook_file}")
+                    return events
+            except json.JSONDecodeError:
+                pass
+        
+        # Fall back to NDJSON format (one JSON per line)
+        events = []
+        for line in content.split('\n'):
+            line = line.strip()
+            if line:
+                try:
+                    event = json.loads(line)
+                    events.append(event)
+                except json.JSONDecodeError as e:
+                    logging.warning(f"Skipping invalid JSON line: {e}")
+                    continue
+        
+        logging.info(f"Loaded {len(events)} events (NDJSON format) from {webhook_file}")
         return events
         
-    except json.JSONDecodeError as e:
-        logging.error(f"Invalid JSON in webhook file: {e}")
-        return []
     except Exception as e:
         logging.error(f"Error reading webhook file: {e}")
         return []
