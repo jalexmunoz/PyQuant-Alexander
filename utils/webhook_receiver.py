@@ -1,5 +1,5 @@
 # utils/webhook_receiver.py
-# v2.0.0 - Improved JSON parsing and error logging for TradingView alerts
+# v2.1.0 - Fixed paths and timezone for Render deployment
 #
 # Deploy to Render with: python utils/webhook_receiver.py
 
@@ -7,11 +7,13 @@ from flask import Flask, request, jsonify, send_file
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+from pathlib import Path
 import hashlib
 import logging
 
-# Configure logging to show in Render logs
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -21,26 +23,44 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# SHARED SECRET - must match TradingView alerts
+# SHARED SECRET
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "pyquant_shadow_2025_xyz123")
 
-# Output directory - works both locally and on Render
-OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "Output/webhooks")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+# TIMEZONE
+APP_TZ = ZoneInfo("America/New_York")
+
+# OUTPUT DIRECTORY - Anchored to repo root (not relative to utils/)
+BASE_DIR = Path(__file__).resolve().parents[1]  # Go up from utils/ to repo root
+OUTPUT_DIR = BASE_DIR / "Output" / "webhooks"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+logger.info(f"Base directory: {BASE_DIR}")
+logger.info(f"Output directory: {OUTPUT_DIR}")
+
+
+def get_local_date_key(dt_utc: datetime) -> str:
+    """Convert UTC datetime to America/New_York date string (YYYY-MM-DD)."""
+    return dt_utc.astimezone(APP_TZ).date().isoformat()
+
+
+def get_events_file(date_str: str) -> Path:
+    """Get path to events file for given date."""
+    return OUTPUT_DIR / f"events_{date_str}.json"
+
 
 def get_event_id(data: dict) -> str:
     """Generate unique event ID for deduplication."""
-    # Use ticker + event_type + date (not exact time) to allow 1 snapshot per day per asset
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = get_local_date_key(datetime.now(timezone.utc))
     key = f"{data.get('ticker')}_{data.get('event_type')}_{today}_{data.get('signal')}"
     return hashlib.sha256(key.encode()).hexdigest()[:16]
 
+
 def load_events_today() -> set:
     """Load today's event IDs for deduplication."""
-    today = datetime.utcnow().strftime("%Y-%m-%d")
-    log_file = os.path.join(OUTPUT_DIR, f"events_{today}.json")
+    today = get_local_date_key(datetime.now(timezone.utc))
+    log_file = get_events_file(today)
     
-    if not os.path.exists(log_file):
+    if not log_file.exists():
         return set()
     
     events = set()
@@ -63,8 +83,9 @@ def health_check():
     return jsonify({
         "status": "ok",
         "service": "pyquant-webhooks",
-        "version": "2.0.0",
-        "timestamp": datetime.utcnow().isoformat()
+        "version": "2.1.0",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "output_dir": str(OUTPUT_DIR)
     }), 200
 
 
@@ -72,16 +93,15 @@ def health_check():
 @app.route('/tradingview', methods=['POST'])
 def tv_webhook():
     try:
-        # 1. LOG RAW REQUEST (for debugging)
+        # 1. LOG RAW REQUEST
         raw_data = request.data.decode('utf-8')
         logger.info(f"[RAW] Content-Type: {request.content_type}")
-        logger.info(f"[RAW] Body: {raw_data[:500]}")  # First 500 chars
+        logger.info(f"[RAW] Body: {raw_data[:500]}")
         
-        # 2. PARSE JSON (handle both application/json and text/plain)
+        # 2. PARSE JSON
         if request.is_json:
             data = request.json
         else:
-            # TradingView sometimes sends as text/plain
             data = json.loads(raw_data)
         
         logger.info(f"[PARSED] {json.dumps(data)}")
@@ -106,10 +126,10 @@ def tv_webhook():
             "ticker": data.get('ticker', 'UNKNOWN'),
             "signal": data.get('signal', 'UNKNOWN'),
             "event_type": data.get('event_type', 'cross'),
-            "received_at": datetime.utcnow().isoformat() + "Z"
+            "received_at": datetime.now(timezone.utc).isoformat() + "Z"
         }
         
-        # Parse numeric fields (price, sma50, sma200)
+        # Parse numeric fields
         for field in ['price', 'sma50', 'sma200']:
             value = data.get(field)
             if value is not None:
@@ -125,14 +145,14 @@ def tv_webhook():
             else:
                 clean_data[field] = None
         
-        # 6. SAVE EVENT
-        today = datetime.utcnow().strftime("%Y-%m-%d")
-        log_file = os.path.join(OUTPUT_DIR, f"events_{today}.json")
+        # 6. SAVE EVENT (using America/New_York date)
+        today = get_local_date_key(datetime.now(timezone.utc))
+        log_file = get_events_file(today)
         
         with open(log_file, 'a') as f:
             f.write(json.dumps(clean_data) + "\n")
         
-        logger.info(f"[SAVED] {clean_data['event_type'].upper()}: {clean_data['ticker']} = {clean_data['signal']}")
+        logger.info(f"[SAVED] {clean_data['event_type'].upper()}: {clean_data['ticker']} = {clean_data['signal']} → {log_file.name}")
         
         return jsonify({
             "status": "ok", 
@@ -160,13 +180,14 @@ def get_events(date: str):
     if len(date) != 10 or date[4] != '-' or date[7] != '-':
         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
     
-    log_file = os.path.join(OUTPUT_DIR, f"events_{date}.json")
+    log_file = get_events_file(date)
     
-    if not os.path.exists(log_file):
-        logger.warning(f"[404] Events file not found: {date}")
-        return jsonify({"error": f"No events for {date}"}), 404
+    if not log_file.exists():
+        logger.warning(f"[404] Events file not found: {date} (looked in {log_file})")
+        # Return empty array instead of 404 for better compatibility
+        return jsonify([]), 200
     
-    logger.info(f"[DOWNLOAD] Events for {date}")
+    logger.info(f"[DOWNLOAD] Events for {date} from {log_file}")
     return send_file(log_file, mimetype='application/json')
 
 
@@ -174,7 +195,7 @@ def get_events(date: str):
 @app.route('/events', methods=['GET'])
 def list_events():
     """List all available event dates."""
-    files = [f for f in os.listdir(OUTPUT_DIR) if f.startswith('events_') and f.endswith('.json')]
+    files = [f.name for f in OUTPUT_DIR.glob('events_*.json')]
     dates = sorted([f.replace('events_', '').replace('.json', '') for f in files], reverse=True)
     return jsonify({"available_dates": dates, "count": len(dates)}), 200
 
@@ -182,6 +203,6 @@ def list_events():
 # ============ MAIN ============
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    logger.info(f"Starting PyQuant Webhook Receiver v2.0.0 on port {port}")
-    logger.info(f"Output directory: {OUTPUT_DIR}")
+    logger.info(f"Starting PyQuant Webhook Receiver v2.1.0 on port {port}")
+    logger.info(f"Timezone: {APP_TZ}")
     app.run(host='0.0.0.0', port=port, debug=False)
