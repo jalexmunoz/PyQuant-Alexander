@@ -555,28 +555,18 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
     # === HEARTBEAT TRACKING ===
     assets_data = {}
     for ticker in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "LINKUSDT"]:
-        decision = decisions.get(ticker)
+        # Get price from market_structure (populated from events)
+        price = market_structure.get(ticker, {}).get("price")
+        snapshot_received = (price is not None)
         
-        if decision and isinstance(decision, dict):
-            snapshot = decision.get("snapshot")
-            if snapshot and isinstance(snapshot, dict):
-                assets_data[ticker] = {
-                    "snapshot_received": True,
-                    "price": snapshot.get("price"),
-                    "action": decision.get("action", "UNKNOWN")
-                }
-            else:
-                assets_data[ticker] = {
-                    "snapshot_received": False,
-                    "price": None,
-                    "action": decision.get("action", "UNKNOWN")
-                }
-        else:
-            assets_data[ticker] = {
-                "snapshot_received": False,
-                "price": None,
-                "action": "UNKNOWN"
-            }
+        # Get action from decisions
+        action = decisions.get(ticker, {}).get("action", "UNKNOWN")
+        
+        assets_data[ticker] = {
+            "snapshot_received": snapshot_received,
+            "price": price,
+            "action": action
+        }
     
     write_heartbeat(
         status="SUCCESS",
