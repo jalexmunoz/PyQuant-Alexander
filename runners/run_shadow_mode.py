@@ -33,9 +33,14 @@ logging.basicConfig(
 # CONFIGURATION
 # =============================================================================
 
-PORTFOLIO_CONFIG = Path("config/portfolio.json")
-WEBHOOK_DIR = Path("Output/webhooks")
-SHADOW_OUTPUT_DIR = Path("Output/shadow")
+# Define root and directories
+ROOT = Path(__file__).resolve().parents[1]   # .../pyquant_alexander
+CONFIG_DIR = ROOT / "config"
+OUTPUT_DIR = ROOT / "Output"
+
+PORTFOLIO_CONFIG = CONFIG_DIR / "portfolio.json"
+WEBHOOK_DIR = OUTPUT_DIR / "webhooks"
+SHADOW_OUTPUT_DIR = OUTPUT_DIR / "shadow"
 
 ASSETS = list(BASE_TARGETS.keys())
 
