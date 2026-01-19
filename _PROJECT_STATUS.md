@@ -1,8 +1,14 @@
 # ESTADO DEL PROYECTO: PyQuant Alexander
 
-## 1. Misión Actual: "The Iron Vault"
+## 1. Estado General del Proyecto
 
-Implementar persistencia inmutable en base de datos (Supabase) para todos los eventos de webhooks entrantes, eliminando la dependencia crítica de archivos JSON efímeros en Render.
+**Fase 2: "The Iron Vault" - ✅ COMPLETADA**
+
+Persistencia inmutable en base de datos (Supabase) implementada y funcionando. Todos los eventos de webhooks se guardan automáticamente en Supabase y `run_shadow_mode.py` lee desde Iron Vault correctamente.
+
+**Fase 3: Automatización - 🚀 EN PROGRESO**
+
+Próximos pasos: Automatizar el flujo completo de webhook → Supabase → Shadow Mode → Decisiones.
 
 ## 2. Arquitectura del Sistema
 
@@ -25,13 +31,15 @@ Implementar persistencia inmutable en base de datos (Supabase) para todos los ev
 
 ## 3. Estado de Tareas
 
+### ✅ Fase 2: "The Iron Vault" - COMPLETADA
+
 - [x] Inicializar contexto (_PROJECT_STATUS.md)
 
 - [x] Instalar cliente Supabase (requirements.txt)
 
 - [x] Configurar credenciales (secrets/env vars)
 
-- [ ] Crear tabla `raw_events` en Supabase
+- [x] Crear tabla `raw_events` en Supabase
 
 - [x] Inyectar código de guardado en `webhook_receiver.py`
 
@@ -55,7 +63,17 @@ Implementar persistencia inmutable en base de datos (Supabase) para todos los ev
 
 - [x] Fix: Corregir variable params en db_provider
 
-- [ ] Configurar variables en Dashboard de Render
+- [x] Configurar variables en Dashboard de Render
+
+- [x] **PRUEBA END-TO-END EXITOSA:** Webhook → Supabase → Shadow Mode detecta cruces correctamente
+
+### 🚀 Fase 3: Automatización - EN PROGRESO
+
+- [ ] Automatizar ejecución diaria de `run_shadow_mode.py`
+- [ ] Configurar scheduler/CRON para ejecución automática
+- [ ] Notificaciones de decisiones importantes
+- [ ] Dashboard de monitoreo de decisiones
+- [ ] Alertas de errores críticos
 
 ## 5. Componentes Implementados
 
@@ -115,31 +133,52 @@ Implementar persistencia inmutable en base de datos (Supabase) para todos los ev
 
 - **Estructura:** Respetar la separación de capas existente.
 
-## 6. Próximos Pasos (Manual)
+## 6. Resumen de Fase 2: "The Iron Vault"
 
-1. **Instalar dependencias:**
-   ```bash
-   pip install postgrest
-   ```
+### ✅ Logros Completados
 
-2. **Configurar credenciales en Render:**
-   - `SUPABASE_URL`: URL de tu proyecto Supabase
-   - `SUPABASE_KEY`: Service role key (para inserts)
-   - Ver `Docs/IRON_VAULT_SETUP.md` para detalles
+1. **Infraestructura de Persistencia:**
+   - Tabla `raw_events` creada en Supabase
+   - Cliente HTTP directo (Python 3.13 compatible)
+   - Integración completa en `webhook_receiver.py`
 
-3. **Crear tabla en Supabase:**
-   - Ejecutar `Docs/supabase_schema.sql` en el SQL Editor de Supabase
+2. **Integración End-to-End:**
+   - Webhook → Supabase: ✅ Funcionando
+   - Supabase → Shadow Mode: ✅ Funcionando
+   - Detección de cruces: ✅ Funcionando
+   - Generación de decisiones: ✅ Funcionando
 
-4. **Verificar funcionamiento:**
-   ```bash
-   python utils/test_supabase_connection.py
-   ```
+3. **Validación Exitosa:**
+   - Webhook de prueba enviado y recibido
+   - Evento guardado en Supabase correctamente
+   - `run_shadow_mode.py` detectó evento de cross ON
+   - Decisión BUY generada para BTCUSDT
+   - Estado de posición actualizado: OFF → ON
 
-5. **Enviar webhook de prueba:**
-   - Verificar que evento aparece en Supabase
-   - Confirmar que archivo JSON sigue funcionando (compatibilidad)
+### 🔧 Configuración Técnica
 
-## 7. Archivos Creados/Modificados
+- **Cliente DB:** Raw HTTP requests (`requests` library)
+- **Compatibilidad:** Python 3.13+
+- **Persistencia Dual:** Supabase (primario) + Archivos JSON (compatibilidad)
+- **Fail-Safe:** Sistema continúa operando aunque Supabase falle temporalmente
+
+## 7. Próximos Pasos (Fase 3: Automatización)
+
+1. **Automatizar ejecución diaria:**
+   - Configurar scheduler (Windows Task Scheduler / CRON) para ejecutar `run_shadow_mode.py` diariamente
+   - Horario sugerido: 16:00 ET (después del cierre del mercado)
+
+2. **Monitoreo y alertas:**
+   - Sistema de notificaciones para decisiones importantes (BUY/SELL)
+   - Dashboard para visualizar decisiones históricas
+   - Alertas de errores críticos (fallos en Supabase, errores en webhooks)
+
+3. **Optimizaciones:**
+   - Cache de datos de mercado para reducir llamadas a APIs
+   - Validación de señales antes de generar decisiones
+   - Historial de rendimiento de decisiones
+
+## 8. Archivos Creados/Modificados
 
 ### Nuevos Archivos
 - `_PROJECT_STATUS.md` - Estado del proyecto (fuente de verdad)
@@ -152,8 +191,34 @@ Implementar persistencia inmutable en base de datos (Supabase) para todos los ev
 - `utils/check_supabase_env.py` - Script de diagnóstico de variables de entorno
 
 ### Archivos Modificados
-- `requirements.txt` - Agregado `postgrest` (cliente ligero para Supabase PostgREST)
-- `utils/webhook_receiver.py` - Integración de persistencia dual (archivo + Supabase)
-- `utils/supabase_client.py` - Reescrito para usar `SyncPostgrestClient` de `postgrest` directamente
-- `utils/test_supabase_connection.py` - Actualizado para usar `.from_()` en lugar de `.table()`
+- `requirements.txt` - Agregado `postgrest`, `requests`, `flask`, `gunicorn`, `python-dotenv`
+- `utils/webhook_receiver.py` - Integración de persistencia dual (archivo + Supabase) con fail-safe
+- `utils/supabase_client.py` - Cliente PostgREST para inserción de eventos
+- `utils/db_provider.py` - Refactorizado a Raw HTTP (Python 3.13 compatible)
+- `runners/run_shadow_mode.py` - Conectado a Supabase para lectura de eventos
+- `utils/test_supabase_connection.py` - Script de validación de conexión
+- `utils/test_production.py` - Script de prueba de webhooks en producción
+- `utils/test_fetch_db.py` - Script de prueba de lectura desde Supabase
+
+## 9. Estado Actual del Sistema
+
+**✅ FUNCIONANDO:**
+- Webhook receiver en Render recibe eventos de TradingView
+- Eventos se guardan automáticamente en Supabase (Iron Vault)
+- `run_shadow_mode.py` lee eventos desde Supabase correctamente
+- Sistema detecta cruces de SMA (ON/OFF) y genera decisiones
+- Decisiones se guardan en `Output/shadow/decisions_YYYY-MM-DD.json`
+- Portfolio se actualiza según decisiones generadas
+
+**📊 Métricas de Validación:**
+- Webhooks recibidos: ✅
+- Eventos guardados en Supabase: ✅
+- Eventos leídos desde Supabase: ✅
+- Cruces detectados: ✅
+- Decisiones generadas: ✅
+
+**🚀 Listo para:**
+- Fase 3: Automatización diaria
+- Integración con TradingView en producción
+- Monitoreo continuo de señales
 
