@@ -117,6 +117,12 @@ def tv_webhook():
         logger.info(f"[PARSED] {json.dumps(data)}")
         
         # 2.5. IRON VAULT: Save to Supabase BEFORE business logic (fail-safe)
+        # DEBUG: Check credentials availability
+        print(f"DEBUG: Supabase URL configured: {bool(os.environ.get('SUPABASE_URL'))}")
+        print(f"DEBUG: Supabase KEY configured: {bool(os.environ.get('SUPABASE_KEY'))}")
+        print(f"DEBUG: SUPABASE_AVAILABLE: {SUPABASE_AVAILABLE}")
+        print(f"DEBUG: supabase_client is None: {supabase_client is None}")
+        
         if SUPABASE_AVAILABLE and supabase_client is not None:
             try:
                 # Structure as specified: payload + ticker + source
@@ -126,15 +132,27 @@ def tv_webhook():
                     "source": "tradingview"
                 }
                 
+                print(f"DEBUG: Intentando insertar payload en raw_events...")
+                print(f"DEBUG: Payload ticker: {insert_payload.get('ticker')}")
+                print(f"DEBUG: Payload source: {insert_payload.get('source')}")
+                
                 # Insert into raw_events table (PostgREST uses .from_() instead of .table())
                 supabase_client.from_("raw_events").insert(insert_payload).execute()
+                
+                print(f"DEBUG: ✅ Inserción en Supabase completada exitosamente")
                 logger.info(f"[SUPABASE] Event saved to Iron Vault: {data.get('ticker', 'UNKNOWN')}")
                 
             except Exception as e:
                 # Fail-safe: log error but don't stop webhook processing
+                print(f"🛑 ERROR CRÍTICO SUPABASE: {str(e)}")
+                print(f"Tipo de error: {type(e)}")
+                print(f"Exception args: {e.args if hasattr(e, 'args') else 'N/A'}")
                 logger.error(f"[SUPABASE] Failed to save event to database: {e}")
                 logger.debug(f"[SUPABASE] Error details: {type(e).__name__}: {str(e)}")
                 # Continue with normal flow even if Supabase fails
+        else:
+            print(f"DEBUG: ⚠️ Supabase NO disponible - saltando inserción en base de datos")
+            print(f"DEBUG: SUPABASE_AVAILABLE={SUPABASE_AVAILABLE}, supabase_client={supabase_client}")
         
         # 3. VALIDATE SECRET
         received_secret = data.get('secret', '')
