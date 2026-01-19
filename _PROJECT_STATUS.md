@@ -16,8 +16,12 @@ Implementar persistencia inmutable en base de datos (Supabase) para todos los ev
 
 - **Capa Config/Output:** `config/portfolio.json`, `Output/`.
 
+**Flujo de Datos:**
+- **Ingesta:** Directa desde Supabase (DbProvider)
+
 **Contexto Técnico:**
-- Cliente DB: postgrest-py (directo)
+- Cliente DB: Raw HTTP requests (requests) - Python 3.13 compatible
+- Antes: postgrest-py SDK (tenía conflictos con Python 3.13)
 
 ## 3. Estado de Tareas
 
@@ -42,6 +46,14 @@ Implementar persistencia inmutable en base de datos (Supabase) para todos los ev
 - [x] Fix dependencies: Agregar Flask a requirements.txt
 
 - [x] Fix: Sanitizar variables de entorno (.strip)
+
+- [x] Conectar run_shadow_mode a DB
+
+- [x] Refactor db_provider a Raw HTTP (Python 3.13 compatibilidad)
+
+- [x] Fix: Asegurar carga de .env en db_provider
+
+- [x] Fix: Corregir variable params en db_provider
 
 - [ ] Configurar variables en Dashboard de Render
 
@@ -74,9 +86,11 @@ Implementar persistencia inmutable en base de datos (Supabase) para todos los ev
 
 ### 5.4. Módulo de Consumo (`utils/db_provider.py`)
 - Cliente consumidor para leer eventos desde Iron Vault
-- Función `get_events_by_date()`: Consulta por fecha específica
+- **Implementación:** Raw HTTP requests usando `requests` (Python 3.13 compatible)
+- Función `get_events_by_date()`: Consulta por fecha específica via PostgREST API
 - Función `get_latest_events()`: Obtiene eventos más recientes (timezone-safe)
 - Manejo robusto de errores (retorna lista vacía si falla)
+- **Cambio:** Refactorizado desde `postgrest` SDK a `requests` para evitar conflictos de typing en Python 3.13
 
 ### 5.5. Script de Prueba (`utils/test_supabase_connection.py`)
 - Script standalone para verificar configuración

@@ -2,10 +2,10 @@
   "equity_curve": 1.0,
   "positions": {
     "BTCUSDT": {
-      "status": "OFF",
-      "entry_price": null,
-      "entry_date": null,
-      "weight": 0.0
+      "status": "ON",
+      "entry_price": 95000,
+      "entry_date": "2026-01-19",
+      "weight": 0.4
     },
     "ETHUSDT": {
       "status": "OFF",
@@ -26,6 +26,6 @@
       "weight": 0.0
     }
   },
-  "last_updated": "2026-01-18T19:02:04.602530",
-  "notes": "Shadow mode - Day 018"
+  "last_updated": "2026-01-18T22:27:33.268333",
+  "notes": "Shadow mode - Day 019"
 }

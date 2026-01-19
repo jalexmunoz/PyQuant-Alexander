@@ -6,10 +6,15 @@ import time
 RENDER_URL = "https://pyquant-alexander.onrender.com/tradingview"
 
 payload = {
-    "ticker": "PROD_TEST_BTC",
-    "price": 100000,
-    "signal": "TEST_FROM_HOME",
-    "secret": "pyquant_shadow_2025_xyz123" # Opcional si tu código lo pide
+    "ticker": "BTCUSDT",           # <--- Ticker real que está en tu portafolio
+    "price": 95000,
+    "sma50": 96000,                # <--- SMA50 > SMA200 = señal ON (cruce alcista)
+    "sma200": 88000,               # <--- Para que sea cross ON, necesitamos sma50 > sma200
+    "signal": "ON",                # <--- ON = cruce alcista (SMA50 cruzó arriba de SMA200)
+    "event_type": "cross",         # <--- Tipo de evento: cross
+    "secret": "pyquant_shadow_2025_xyz123", # (La que empieza con pyquant...)
+    "strategy": "CES_v1_Shadow",
+    "time": "2026-01-18T16:00:00Z"
 }
 
 print(f"🚀 Enviando misil de prueba a: {RENDER_URL}")

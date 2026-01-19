@@ -15,6 +15,10 @@ import argparse
 from pathlib import Path
 from datetime import datetime, date, timezone
 from typing import Dict, List, Optional, Any
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -22,6 +26,7 @@ sys.path.insert(0, str(project_root))
 
 from core.strategies.trend_filter_strategy import BASE_TARGETS
 from utils.heartbeat import write_heartbeat
+from utils.db_provider import get_events_by_date
 
 # Setup logging
 logging.basicConfig(
@@ -464,8 +469,15 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
     portfolio = load_portfolio()
     equity_start = portfolio["equity_curve"]
     
-    # Load webhook events
-    events = load_webhook_events(target_date)
+    # Load webhook events from Iron Vault (Supabase)
+    date_str = target_date.strftime("%Y-%m-%d")
+    events = get_events_by_date(date_str)
+    
+    if not events:
+        logging.warning(f"No events found in Iron Vault for date: {date_str}")
+        logging.info("💡 Tip: Events are stored in Supabase when webhooks are received")
+    else:
+        logging.info(f"📥 Cargados {len(events)} eventos desde Iron Vault (Supabase) para fecha: {date_str}")
     
     # Extract snapshots from events
     snapshot_data = {}
