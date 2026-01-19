@@ -14,6 +14,10 @@ Persistencia inmutable en base de datos (Supabase) implementada y funcionando. T
 
 Sistema automatizado mediante Windows Task Scheduler. El script `run_shadow_mode.bat` ejecuta diariamente el procesamiento de shadow mode.
 
+**Fase 4: Análisis Histórico (Backtesting) - 🚀 EN PROGRESO**
+
+Evaluación de rentabilidad histórica de la estrategia Golden Cross (SMA50/SMA200) usando datos de Yahoo Finance desde 2020.
+
 ## 2. Arquitectura del Sistema
 
 - **Capa Base (Datos):** `utils/data_fetcher.py` (TradingView/Binance).
@@ -79,6 +83,13 @@ Sistema automatizado mediante Windows Task Scheduler. El script `run_shadow_mode
 - [ ] Notificaciones de decisiones importantes (opcional, futuro)
 - [ ] Dashboard de monitoreo de decisiones (opcional, futuro)
 - [ ] Alertas de errores críticos (opcional, futuro)
+
+### 📊 Fase 4: Análisis Histórico (Backtesting) - EN PROGRESO
+
+- [x] Script de Backtesting simple creado (`analysis/backtest_simple.py`)
+- [ ] Validación de resultados con datos históricos
+- [ ] Comparación con estrategias benchmark
+- [ ] Análisis de drawdowns y métricas de riesgo
 
 ## 5. Componentes Implementados
 
