@@ -16,8 +16,13 @@ python-binance>=1.0.19        # Binance API client
 requests>=2.31.0              # HTTP client for APIs (CoinGecko, etc.)
 python-dotenv>=1.0.0          # .env file management
 
+# === Web Framework ===
+flask>=2.3.0                  # Flask web framework (for webhook_receiver.py)
+gunicorn>=21.2.0              # WSGI HTTP Server (for production deployment on Render)
+
 # === Persistence (Iron Vault) ===
 postgrest                     # PostgREST client for Supabase (lightweight, direct)
+supabase>=2.0.0               # Supabase client (optional, for full compatibility)
 
 # === Statistics & Regression ===
 statsmodels>=0.14.0           # OLS regression, Alpha/Beta decomposition
