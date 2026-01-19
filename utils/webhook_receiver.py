@@ -21,15 +21,36 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Iron Vault: Supabase client (fail-fast on import if misconfigured)
+# --- DIAGNÓSTICO DE ARRANQUE ---
+print("🔍 INICIANDO SISTEMA... Verificando dependencias...")
+
 try:
     from utils.supabase_client import supabase_client
     SUPABASE_AVAILABLE = True
+    print("✅ ÉXITO: Supabase Client importado correctamente.")
     logger.info("Supabase client loaded successfully")
-except (ImportError, ValueError, RuntimeError) as e:
+except ImportError as e:
     SUPABASE_AVAILABLE = False
-    logger.warning(f"Supabase client not available (Iron Vault disabled): {e}")
     supabase_client = None
+    print(f"🛑 ERROR CRÍTICO: No se pudo importar Supabase. Causa: {e}")
+    print(f"📂 Directorio actual: {os.getcwd()}")
+    print(f"🐍 Sys Path: {sys.path}")
+    logger.warning(f"Supabase client not available (Iron Vault disabled): {e}")
+except (ValueError, RuntimeError) as e:
+    SUPABASE_AVAILABLE = False
+    supabase_client = None
+    print(f"🛑 ERROR CRÍTICO: Error al inicializar Supabase Client. Causa: {e}")
+    print(f"📂 Directorio actual: {os.getcwd()}")
+    print(f"🐍 Sys Path: {sys.path}")
+    logger.warning(f"Supabase client not available (Iron Vault disabled): {e}")
+except Exception as e:
+    SUPABASE_AVAILABLE = False
+    supabase_client = None
+    print(f"🛑 ERROR DESCONOCIDO al importar: {e}")
+    print(f"📂 Directorio actual: {os.getcwd()}")
+    print(f"🐍 Sys Path: {sys.path}")
+    logger.warning(f"Supabase client not available (Iron Vault disabled): {e}")
+# -------------------------------
 
 app = Flask(__name__)
 
@@ -151,6 +172,7 @@ def tv_webhook():
                 logger.debug(f"[SUPABASE] Error details: {type(e).__name__}: {str(e)}")
                 # Continue with normal flow even if Supabase fails
         else:
+            logger.error("⚠️ ALERTA: Se recibió evento pero Supabase está DESACTIVADO por error de inicio.")
             print(f"DEBUG: ⚠️ Supabase NO disponible - saltando inserción en base de datos")
             print(f"DEBUG: SUPABASE_AVAILABLE={SUPABASE_AVAILABLE}, supabase_client={supabase_client}")
         
