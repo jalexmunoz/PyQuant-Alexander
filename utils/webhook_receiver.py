@@ -13,13 +13,23 @@ from pathlib import Path
 import hashlib
 import logging
 
-# Configure logging
+# Configure logging first (before Supabase import)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
+
+# Iron Vault: Supabase client (fail-fast on import if misconfigured)
+try:
+    from utils.supabase_client import supabase_client
+    SUPABASE_AVAILABLE = True
+    logger.info("Supabase client loaded successfully")
+except (ImportError, ValueError, RuntimeError) as e:
+    SUPABASE_AVAILABLE = False
+    logger.warning(f"Supabase client not available (Iron Vault disabled): {e}")
+    supabase_client = None
 
 app = Flask(__name__)
 
@@ -106,6 +116,26 @@ def tv_webhook():
         
         logger.info(f"[PARSED] {json.dumps(data)}")
         
+        # 2.5. IRON VAULT: Save to Supabase BEFORE business logic (fail-safe)
+        if SUPABASE_AVAILABLE and supabase_client is not None:
+            try:
+                # Structure as specified: payload + ticker + source
+                insert_payload = {
+                    "payload": data,  # Full raw payload
+                    "ticker": data.get("ticker", "UNKNOWN"),
+                    "source": "tradingview"
+                }
+                
+                # Insert into raw_events table (PostgREST uses .from_() instead of .table())
+                supabase_client.from_("raw_events").insert(insert_payload).execute()
+                logger.info(f"[SUPABASE] Event saved to Iron Vault: {data.get('ticker', 'UNKNOWN')}")
+                
+            except Exception as e:
+                # Fail-safe: log error but don't stop webhook processing
+                logger.error(f"[SUPABASE] Failed to save event to database: {e}")
+                logger.debug(f"[SUPABASE] Error details: {type(e).__name__}: {str(e)}")
+                # Continue with normal flow even if Supabase fails
+        
         # 3. VALIDATE SECRET
         received_secret = data.get('secret', '')
         if received_secret != WEBHOOK_SECRET:
@@ -145,14 +175,21 @@ def tv_webhook():
             else:
                 clean_data[field] = None
         
-        # 6. SAVE EVENT (using America/New_York date)
-        today = get_local_date_key(datetime.now(timezone.utc))
-        log_file = get_events_file(today)
-        
-        with open(log_file, 'a') as f:
-            f.write(json.dumps(clean_data) + "\n")
-        
-        logger.info(f"[SAVED] {clean_data['event_type'].upper()}: {clean_data['ticker']} = {clean_data['signal']} → {log_file.name}")
+        # 6. SAVE EVENT TO FILE (non-critical, preserved for compatibility)
+        # Note: File writing is non-critical - if it fails, webhook still succeeds
+        # Supabase (Iron Vault) is the primary persistence layer
+        try:
+            today = get_local_date_key(datetime.now(timezone.utc))
+            log_file = get_events_file(today)
+            
+            with open(log_file, 'a') as f:
+                f.write(json.dumps(clean_data) + "\n")
+            
+            logger.info(f"[FILE] {clean_data['event_type'].upper()}: {clean_data['ticker']} = {clean_data['signal']} → {log_file.name}")
+        except Exception as e:
+            # Non-critical: log warning but don't fail the webhook
+            logger.warning(f"[FILE] Failed to save event to file (non-critical): {e}")
+            # Continue - Supabase is the primary storage
         
         return jsonify({
             "status": "ok", 
