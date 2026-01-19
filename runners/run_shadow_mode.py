@@ -98,9 +98,15 @@ def validate_event_data(event: dict, fast_ma: int = 50, slow_ma: int = 200) -> b
 # =============================================================================
 
 def get_default_portfolio() -> Dict[str, Any]:
-    """Get default portfolio structure."""
+    """Get default portfolio structure with optimized MA parameters."""
     return {
         "equity_curve": 1.0,
+        "assets": {
+            "BTCUSDT": {"fast_ma": 10, "slow_ma": 100, "status": "active", "weight": 0.4},
+            "ETHUSDT": {"fast_ma": 30, "slow_ma": 150, "status": "active", "weight": 0.4},
+            "SOLUSDT": {"fast_ma": 10, "slow_ma": 50, "status": "active", "weight": 0.15},
+            "LINKUSDT": {"fast_ma": 20, "slow_ma": 100, "status": "active", "weight": 0.05}
+        },
         "positions": {
             asset: {
                 "status": "OFF",
@@ -110,8 +116,13 @@ def get_default_portfolio() -> Dict[str, Any]:
             }
             for asset in ASSETS
         },
+        "global_settings": {
+            "commission_rate": 0.001,
+            "risk_on_threshold": 0.7,
+            "risk_off_threshold": 0.3
+        },
         "last_updated": None,
-        "notes": "Shadow mode - Day 0"
+        "notes": "Shadow mode - Day 0 - Optimized MA parameters per asset"
     }
 
 
@@ -517,13 +528,27 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
                 "sma200": event.get("sma200")
             }
     
-    # Use BASE_TARGETS for asset weights
-    weights = BASE_TARGETS.copy()
+    # Build weights dictionary from asset config or use BASE_TARGETS as fallback
+    weights = {}
+    for ticker in ASSETS:
+        asset_config = assets_config.get(ticker, {})
+        if asset_config:
+            weights[ticker] = asset_config.get("weight", BASE_TARGETS.get(ticker, 0.0))
+        else:
+            weights[ticker] = BASE_TARGETS.get(ticker, 0.0)
     
     # Process each asset
     decisions = {}
     
     for ticker in ASSETS:
+        # Get MA configuration for this asset
+        asset_config = assets_config.get(ticker, {})
+        fast_ma = asset_config.get("fast_ma", 50)  # Default to 50 for backward compatibility
+        slow_ma = asset_config.get("slow_ma", 200)  # Default to 200 for backward compatibility
+        
+        # Log which MA configuration is being used
+        logging.info(f"📊 Analizando {ticker} (SMA {fast_ma}/{slow_ma})...")
+        
         asset_events = filter_events_by_asset(events, ticker)
         current_position = portfolio["positions"][ticker]
         
@@ -531,7 +556,9 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
             ticker=ticker,
             asset_events=asset_events,
             current_position=current_position,
-            weights=weights
+            weights=weights,
+            fast_ma=fast_ma,
+            slow_ma=slow_ma
         )
         
         decisions[ticker] = decision
