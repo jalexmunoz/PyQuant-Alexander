@@ -66,8 +66,9 @@ except Exception as e:
 
 app = Flask(__name__)
 
-# SHARED SECRET
-WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "pyquant_shadow_2025_xyz123")
+# SHARED SECRET (strip whitespace/newlines from Render env vars)
+secret = os.environ.get("WEBHOOK_SECRET", "pyquant_shadow_2025_xyz123")
+WEBHOOK_SECRET = secret.strip() if secret else "pyquant_shadow_2025_xyz123"
 
 # TIMEZONE
 APP_TZ = ZoneInfo("America/New_York")

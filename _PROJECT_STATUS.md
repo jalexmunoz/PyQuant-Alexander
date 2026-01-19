@@ -31,6 +31,18 @@ Implementar persistencia inmutable en base de datos (Supabase) para todos los ev
 
 - [x] Inyectar código de guardado en `webhook_receiver.py`
 
+- [x] Crear db_provider para lectura
+
+- [x] Mejorar herramienta de lectura (timezone-safe con `get_latest_events`)
+
+- [x] Habilitar logs de debug en producción
+
+- [x] Fix imports path para Render
+
+- [x] Fix dependencies: Agregar Flask a requirements.txt
+
+- [x] Fix: Sanitizar variables de entorno (.strip)
+
 - [ ] Configurar variables en Dashboard de Render
 
 ## 5. Componentes Implementados
@@ -60,12 +72,23 @@ Implementar persistencia inmutable en base de datos (Supabase) para todos los ev
 - Fail-safe: Try/except que no detiene el flujo si Supabase falla
 - Persistencia dual: Supabase (Iron Vault) + archivo (compatibilidad)
 
-### 5.4. Script de Prueba (`utils/test_supabase_connection.py`)
+### 5.4. Módulo de Consumo (`utils/db_provider.py`)
+- Cliente consumidor para leer eventos desde Iron Vault
+- Función `get_events_by_date()`: Consulta por fecha específica
+- Función `get_latest_events()`: Obtiene eventos más recientes (timezone-safe)
+- Manejo robusto de errores (retorna lista vacía si falla)
+
+### 5.5. Script de Prueba (`utils/test_supabase_connection.py`)
 - Script standalone para verificar configuración
 - Prueba conexión, acceso a tabla e inserción de eventos
 - Útil para debugging y validación
 
-### 5.5. Documentación (`Docs/IRON_VAULT_SETUP.md`)
+### 5.6. Script de Prueba de Consumo (`utils/test_fetch_db.py`)
+- Script para probar lectura de eventos desde Iron Vault
+- Usa `get_latest_events()` para evitar problemas de timezone
+- Muestra eventos recientes con fecha y ticker de forma clara
+
+### 5.7. Documentación (`Docs/IRON_VAULT_SETUP.md`)
 - Guía completa de configuración paso a paso
 - Troubleshooting y consultas útiles
 - Ejemplos de uso
@@ -106,10 +129,13 @@ Implementar persistencia inmutable en base de datos (Supabase) para todos los ev
 
 ### Nuevos Archivos
 - `_PROJECT_STATUS.md` - Estado del proyecto (fuente de verdad)
-- `utils/supabase_client.py` - Módulo de persistencia Supabase
+- `utils/supabase_client.py` - Módulo de persistencia Supabase (PostgREST)
+- `utils/db_provider.py` - Módulo de consumo para leer eventos (timezone-safe)
 - `Docs/supabase_schema.sql` - Esquema de tabla `raw_events`
 - `Docs/IRON_VAULT_SETUP.md` - Guía de configuración
-- `utils/test_supabase_connection.py` - Script de prueba
+- `utils/test_supabase_connection.py` - Script de prueba de conexión
+- `utils/test_fetch_db.py` - Script de prueba de consumo (timezone-safe)
+- `utils/check_supabase_env.py` - Script de diagnóstico de variables de entorno
 
 ### Archivos Modificados
 - `requirements.txt` - Agregado `postgrest` (cliente ligero para Supabase PostgREST)

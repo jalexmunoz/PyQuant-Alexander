@@ -22,9 +22,12 @@ logger = logging.getLogger(__name__)
 try:
     from postgrest import SyncPostgrestClient
     
-    # Read credentials from environment
-    SUPABASE_URL = os.environ.get("SUPABASE_URL")
-    SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+    # Read credentials from environment (strip whitespace/newlines from Render env vars)
+    url = os.environ.get("SUPABASE_URL")
+    SUPABASE_URL = url.strip() if url else ""
+    
+    key = os.environ.get("SUPABASE_KEY")
+    SUPABASE_KEY = key.strip() if key else ""
     
     # Validate credentials
     if not SUPABASE_URL:
