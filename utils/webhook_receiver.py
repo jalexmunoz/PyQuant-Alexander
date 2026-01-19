@@ -21,36 +21,48 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# --- DIAGNÓSTICO DE ARRANQUE ---
+# --- LÓGICA DE IMPORTACIÓN ROBUSTA ---
 print("🔍 INICIANDO SISTEMA... Verificando dependencias...")
+print(f"📂 Directorio actual: {os.getcwd()}")
+print(f"🐍 Sys Path: {sys.path}")
+
+SUPABASE_AVAILABLE = False
+supabase_client = None
 
 try:
+    # Intento 1: Importación absoluta (funciona en local/tests cuando se ejecuta desde raíz)
+    print("🔄 Intento 1: Importación absoluta (from utils.supabase_client)...")
     from utils.supabase_client import supabase_client
     SUPABASE_AVAILABLE = True
-    print("✅ ÉXITO: Supabase Client importado correctamente.")
-    logger.info("Supabase client loaded successfully")
-except ImportError as e:
-    SUPABASE_AVAILABLE = False
-    supabase_client = None
-    print(f"🛑 ERROR CRÍTICO: No se pudo importar Supabase. Causa: {e}")
-    print(f"📂 Directorio actual: {os.getcwd()}")
-    print(f"🐍 Sys Path: {sys.path}")
-    logger.warning(f"Supabase client not available (Iron Vault disabled): {e}")
+    print("✅ ÉXITO: Supabase Client importado correctamente (ruta absoluta).")
+    logger.info("Supabase client loaded successfully (absolute import)")
+except ImportError as e1:
+    print(f"⚠️ Intento 1 falló: {e1}")
+    try:
+        # Intento 2: Importación relativa/directa (funciona en Render cuando se ejecuta dentro de utils/)
+        print("🔄 Intento 2: Importación relativa (from supabase_client)...")
+        from supabase_client import supabase_client
+        SUPABASE_AVAILABLE = True
+        print("✅ ÉXITO: Supabase Client importado correctamente (ruta relativa).")
+        logger.info("Supabase client loaded successfully (relative import)")
+    except ImportError as e2:
+        SUPABASE_AVAILABLE = False
+        supabase_client = None
+        print(f"🛑 ERROR CRÍTICO DE IMPORTACIÓN: Ambos intentos fallaron")
+        print(f"   Intento 1 (absoluto): {e1}")
+        print(f"   Intento 2 (relativo): {e2}")
+        logger.warning(f"Supabase client not available (Iron Vault disabled). Import errors: {e1}, {e2}")
 except (ValueError, RuntimeError) as e:
     SUPABASE_AVAILABLE = False
     supabase_client = None
     print(f"🛑 ERROR CRÍTICO: Error al inicializar Supabase Client. Causa: {e}")
-    print(f"📂 Directorio actual: {os.getcwd()}")
-    print(f"🐍 Sys Path: {sys.path}")
     logger.warning(f"Supabase client not available (Iron Vault disabled): {e}")
 except Exception as e:
     SUPABASE_AVAILABLE = False
     supabase_client = None
     print(f"🛑 ERROR DESCONOCIDO al importar: {e}")
-    print(f"📂 Directorio actual: {os.getcwd()}")
-    print(f"🐍 Sys Path: {sys.path}")
     logger.warning(f"Supabase client not available (Iron Vault disabled): {e}")
-# -------------------------------
+# -------------------------------------
 
 app = Flask(__name__)
 
