@@ -88,6 +88,7 @@ Evaluación de rentabilidad histórica de la estrategia Golden Cross (SMA50/SMA2
 
 - [x] Script de Backtesting simple creado (`analysis/backtest_simple.py`)
 - [x] Script de Optimización de Parámetros (`analysis/optimize_strategy.py`)
+- [x] Implementar parámetros dinámicos por activo (Configuración Optimizada)
 - [ ] Validación de resultados con datos históricos
 - [ ] Comparación con estrategias benchmark
 - [ ] Análisis de drawdowns y métricas de riesgo

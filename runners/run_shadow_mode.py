@@ -54,8 +54,15 @@ ASSETS = list(BASE_TARGETS.keys())
 # VALIDATION
 # =============================================================================
 
-def validate_event_data(event: dict) -> bool:
-    """Validate event data quality. Returns True if valid, False if invalid."""
+def validate_event_data(event: dict, fast_ma: int = 50, slow_ma: int = 200) -> bool:
+    """
+    Validate event data quality. Returns True if valid, False if invalid.
+    
+    Parameters:
+        event: Event dictionary
+        fast_ma: Fast MA period (for field name, defaults to 50 for backward compatibility)
+        slow_ma: Slow MA period (for field name, defaults to 200 for backward compatibility)
+    """
     ticker = event.get("ticker")
     event_type = event.get("event_type")
     
@@ -65,10 +72,14 @@ def validate_event_data(event: dict) -> bool:
     
     if event_type == "daily_snapshot":
         price = event.get("price")
-        sma50 = event.get("sma50")
-        sma200 = event.get("sma200")
+        # Try to get MA values - support both dynamic names and legacy sma50/sma200
+        fast_ma_key = f"sma{fast_ma}" if fast_ma != 50 else "sma50"
+        slow_ma_key = f"sma{slow_ma}" if slow_ma != 200 else "sma200"
         
-        for field_name, field_value in [("price", price), ("sma50", sma50), ("sma200", sma200)]:
+        fast_sma = event.get(fast_ma_key) or event.get("sma50")
+        slow_sma = event.get(slow_ma_key) or event.get("sma200")
+        
+        for field_name, field_value in [("price", price), (fast_ma_key, fast_sma), (slow_ma_key, slow_sma)]:
             if field_value is None:
                 logging.warning(f"{ticker}: Missing {field_name}")
                 return False
@@ -279,7 +290,9 @@ def process_asset_decision(
     ticker: str,
     asset_events: List[Dict[str, Any]],
     current_position: Dict[str, Any],
-    weights: Dict[str, float]
+    weights: Dict[str, float],
+    fast_ma: int = 50,
+    slow_ma: int = 200
 ) -> Dict[str, Any]:
     """
     Process decision logic for a single asset.
@@ -289,6 +302,8 @@ def process_asset_decision(
         asset_events: All events for this asset
         current_position: Current position state
         weights: Asset weights dictionary
+        fast_ma: Fast moving average period
+        slow_ma: Slow moving average period
         
     Returns:
         Decision dictionary
@@ -302,12 +317,21 @@ def process_asset_decision(
     }
     
     # Get snapshot data if available
+    # Support both dynamic MA names and legacy sma50/sma200
     snapshot = get_snapshot_event(asset_events)
     if snapshot:
+        fast_ma_key = f"sma{fast_ma}" if fast_ma != 50 else "sma50"
+        slow_ma_key = f"sma{slow_ma}" if slow_ma != 200 else "sma200"
+        
+        fast_sma_value = snapshot.get(fast_ma_key) or snapshot.get("sma50")
+        slow_sma_value = snapshot.get(slow_ma_key) or snapshot.get("sma200")
+        
         decision["snapshot"] = {
             "price": snapshot.get('price'),
-            "sma50": snapshot.get('sma50'),
-            "sma200": snapshot.get('sma200')
+            "fast_ma": fast_sma_value,
+            "slow_ma": slow_sma_value,
+            "fast_ma_period": fast_ma,
+            "slow_ma_period": slow_ma
         }
     
     # Check for cross ON event
@@ -315,7 +339,7 @@ def process_asset_decision(
     if cross_on:
         if current_position["status"] == "OFF":
             decision["action"] = "BUY"
-            decision["reason"] = "SMA50 crossed above SMA200"
+            decision["reason"] = f"SMA{fast_ma} crossed above SMA{slow_ma}"
             decision["position"] = "ON"
             # Use price from cross event or snapshot for entry
             entry_price = cross_on.get('price') or (snapshot.get('price') if snapshot else None)
@@ -332,7 +356,7 @@ def process_asset_decision(
     if cross_off:
         if current_position["status"] == "ON":
             decision["action"] = "SELL"
-            decision["reason"] = "SMA50 crossed below SMA200"
+            decision["reason"] = f"SMA{fast_ma} crossed below SMA{slow_ma}"
             decision["position"] = "OFF"
             
             # Store exit price from cross event or snapshot
@@ -469,6 +493,9 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
     portfolio = load_portfolio()
     equity_start = portfolio["equity_curve"]
     
+    # Get asset configuration (MA parameters) and weights from portfolio
+    assets_config = portfolio.get("assets", {})
+    
     # Load webhook events from Iron Vault (Supabase)
     date_str = target_date.strftime("%Y-%m-%d")
     events = get_events_by_date(date_str)
@@ -520,23 +547,32 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
     market_structure = {}
     for ticker in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "LINKUSDT"]:
         snapshot = snapshot_data.get(ticker, {})
+        asset_config = assets_config.get(ticker, {})
+        fast_ma = asset_config.get("fast_ma", 50)
+        slow_ma = asset_config.get("slow_ma", 200)
         
         price = snapshot.get("price")
-        sma50 = snapshot.get("sma50")
-        sma200 = snapshot.get("sma200")
+        # Get MA values - support both dynamic and legacy fields
+        fast_ma_key = f"sma{fast_ma}" if fast_ma != 50 else "sma50"
+        slow_ma_key = f"sma{slow_ma}" if slow_ma != 200 else "sma200"
+        
+        fast_sma_value = snapshot.get(fast_ma_key) or snapshot.get("sma50")
+        slow_sma_value = snapshot.get(slow_ma_key) or snapshot.get("sma200")
         
         # Calculate metrics
-        if sma50 and sma200 and sma200 != 0:
-            gap_pct = ((sma50 / sma200) - 1) * 100
-            signal = "ON" if sma50 > sma200 else "OFF"
+        if fast_sma_value and slow_sma_value and slow_sma_value != 0:
+            gap_pct = ((fast_sma_value / slow_sma_value) - 1) * 100
+            signal = "ON" if fast_sma_value > slow_sma_value else "OFF"
         else:
             gap_pct = None
             signal = "UNKNOWN"
         
         market_structure[ticker] = {
             "price": price,
-            "sma50": sma50,
-            "sma200": sma200,
+            "fast_ma": fast_sma_value,
+            "slow_ma": slow_sma_value,
+            "fast_ma_period": fast_ma,
+            "slow_ma_period": slow_ma,
             "gap_pct": round(gap_pct, 2) if gap_pct else None,
             "signal": signal,
             "days_since_last_cross": None
