@@ -102,10 +102,26 @@ def get_default_portfolio() -> Dict[str, Any]:
     return {
         "equity_curve": 1.0,
         "assets": {
-            "BTCUSDT": {"fast_ma": 10, "slow_ma": 100, "status": "active", "weight": 0.4},
-            "ETHUSDT": {"fast_ma": 30, "slow_ma": 150, "status": "active", "weight": 0.4},
-            "SOLUSDT": {"fast_ma": 10, "slow_ma": 50, "status": "active", "weight": 0.15},
-            "LINKUSDT": {"fast_ma": 20, "slow_ma": 100, "status": "active", "weight": 0.05}
+            "BTCUSDT": {
+                "fast_ma": 10, "slow_ma": 100, "status": "active", "weight": 0.4,
+                "entry_price": 0.0, "highest_close": 0.0,
+                "hard_stop_pct": 0.12, "trailing_stop_pct": 0.10
+            },
+            "ETHUSDT": {
+                "fast_ma": 30, "slow_ma": 150, "status": "active", "weight": 0.4,
+                "entry_price": 0.0, "highest_close": 0.0,
+                "hard_stop_pct": 0.12, "trailing_stop_pct": 0.10
+            },
+            "SOLUSDT": {
+                "fast_ma": 10, "slow_ma": 50, "status": "active", "weight": 0.15,
+                "entry_price": 0.0, "highest_close": 0.0,
+                "hard_stop_pct": 0.12, "trailing_stop_pct": 0.10
+            },
+            "LINKUSDT": {
+                "fast_ma": 20, "slow_ma": 100, "status": "active", "weight": 0.05,
+                "entry_price": 0.0, "highest_close": 0.0,
+                "hard_stop_pct": 0.12, "trailing_stop_pct": 0.10
+            }
         },
         "positions": {
             asset: {
@@ -302,17 +318,19 @@ def process_asset_decision(
     asset_events: List[Dict[str, Any]],
     current_position: Dict[str, Any],
     weights: Dict[str, float],
+    asset_config: Dict[str, Any],
     fast_ma: int = 50,
     slow_ma: int = 200
 ) -> Dict[str, Any]:
     """
-    Process decision logic for a single asset.
+    Process decision logic for a single asset with Circuit Breaker protection.
     
     Parameters:
         ticker: Asset ticker (e.g., 'BTCUSDT')
         asset_events: All events for this asset
         current_position: Current position state
         weights: Asset weights dictionary
+        asset_config: Asset configuration (from portfolio.assets)
         fast_ma: Fast moving average period
         slow_ma: Slow moving average period
         
@@ -330,22 +348,72 @@ def process_asset_decision(
     # Get snapshot data if available
     # Support both dynamic MA names and legacy sma50/sma200
     snapshot = get_snapshot_event(asset_events)
+    current_price = None
+    
     if snapshot:
         fast_ma_key = f"sma{fast_ma}" if fast_ma != 50 else "sma50"
         slow_ma_key = f"sma{slow_ma}" if slow_ma != 200 else "sma200"
         
         fast_sma_value = snapshot.get(fast_ma_key) or snapshot.get("sma50")
         slow_sma_value = snapshot.get(slow_ma_key) or snapshot.get("sma200")
+        current_price = snapshot.get('price')
         
         decision["snapshot"] = {
-            "price": snapshot.get('price'),
+            "price": current_price,
             "fast_ma": fast_sma_value,
             "slow_ma": slow_sma_value,
             "fast_ma_period": fast_ma,
             "slow_ma_period": slow_ma
         }
     
-    # Check for cross ON event
+    # Get circuit breaker parameters from asset config
+    hard_stop_pct = asset_config.get("hard_stop_pct", 0.12)
+    trailing_stop_pct = asset_config.get("trailing_stop_pct", 0.10)
+    entry_price_config = asset_config.get("entry_price", 0.0)
+    highest_close_config = asset_config.get("highest_close", 0.0)
+    
+    # Get entry price from position or asset config
+    entry_price = current_position.get("entry_price") or entry_price_config or None
+    
+    # =========================================================================
+    # CIRCUIT BREAKER LOGIC (Priority Check)
+    # =========================================================================
+    if current_position["status"] == "ON" and current_price and entry_price:
+        # Update highest_close if current price is higher
+        if current_price > highest_close_config:
+            highest_close_config = current_price
+            decision["update_highest_close"] = current_price
+        
+        # Calculate drawdown from peak
+        if highest_close_config > 0:
+            drawdown = (current_price - highest_close_config) / highest_close_config
+        else:
+            drawdown = 0.0
+        
+        # Calculate loss from entry
+        loss_from_entry = (current_price - entry_price) / entry_price
+        
+        # Circuit Breaker Trigger Check
+        if loss_from_entry < -hard_stop_pct or drawdown < -trailing_stop_pct:
+            decision["action"] = "SELL"
+            decision["reason"] = "🛑 CIRCUIT BREAKER TRIGGERED"
+            decision["position"] = "OFF"
+            
+            # Reset circuit breaker fields
+            decision["reset_circuit_breaker"] = True
+            
+            # Store exit info
+            if current_price:
+                decision["exit_price"] = current_price
+                decision["entry_price"] = entry_price
+            
+            return decision
+    
+    # =========================================================================
+    # REGULAR SIGNAL LOGIC
+    # =========================================================================
+    
+    # Check for cross ON event (BUY)
     cross_on = get_cross_event(asset_events, 'ON')
     if cross_on:
         if current_position["status"] == "OFF":
@@ -356,13 +424,16 @@ def process_asset_decision(
             entry_price = cross_on.get('price') or (snapshot.get('price') if snapshot else None)
             if entry_price:
                 decision["entry_price"] = entry_price
+                # Initialize highest_close with entry price
+                decision["update_highest_close"] = entry_price
+                decision["update_entry_price"] = entry_price
             return decision
         else:
             decision["action"] = "HOLD"
             decision["reason"] = "Already in position"
             return decision
     
-    # Check for cross OFF event
+    # Check for cross OFF event (SELL)
     cross_off = get_cross_event(asset_events, 'OFF')
     if cross_off:
         if current_position["status"] == "ON":
@@ -372,14 +443,22 @@ def process_asset_decision(
             
             # Store exit price from cross event or snapshot
             exit_price = cross_off.get('price') or (snapshot.get('price') if snapshot else None)
-            if exit_price and current_position.get("entry_price"):
+            if exit_price and entry_price:
                 decision["exit_price"] = exit_price
-                decision["entry_price"] = current_position["entry_price"]
+                decision["entry_price"] = entry_price
+            
+            # Reset circuit breaker fields
+            decision["reset_circuit_breaker"] = True
             return decision
         else:
             decision["action"] = "HOLD"
             decision["reason"] = "Already out of position"
             return decision
+    
+    # If in position and price available, update highest_close if needed
+    if current_position["status"] == "ON" and current_price:
+        if current_price > highest_close_config:
+            decision["update_highest_close"] = current_price
     
     return decision
 
@@ -454,12 +533,19 @@ def update_portfolio_positions(
     target_date: str,
     weights: Dict[str, float]
 ) -> None:
-    """Update portfolio positions based on decisions."""
+    """Update portfolio positions based on decisions, including Circuit Breaker fields."""
+    assets_config = portfolio.get("assets", {})
+    
     for ticker, decision in decisions.items():
         if decision is None:
             continue
             
         position = portfolio["positions"][ticker]
+        
+        # Ensure asset_config exists
+        if ticker not in assets_config:
+            assets_config[ticker] = {}
+        asset_config = assets_config[ticker]
         
         if decision.get("action") == "BUY":
             position["status"] = "ON"
@@ -467,6 +553,11 @@ def update_portfolio_positions(
             entry_price = decision.get("entry_price")
             if entry_price:
                 position["entry_price"] = entry_price
+                # Update asset config with entry price and highest close
+                if decision.get("update_entry_price"):
+                    asset_config["entry_price"] = entry_price
+                if decision.get("update_highest_close"):
+                    asset_config["highest_close"] = decision.get("update_highest_close")
             position["entry_date"] = target_date
             position["weight"] = weights.get(ticker, 0.0)
             
@@ -475,6 +566,18 @@ def update_portfolio_positions(
             position["entry_price"] = None
             position["entry_date"] = None
             position["weight"] = 0.0
+            
+            # Reset circuit breaker fields in asset config
+            if decision.get("reset_circuit_breaker"):
+                asset_config["entry_price"] = 0.0
+                asset_config["highest_close"] = 0.0
+        else:
+            # HOLD: Update highest_close if price increased
+            if decision.get("update_highest_close"):
+                asset_config["highest_close"] = decision.get("update_highest_close")
+        
+        # Save asset_config back to portfolio
+        portfolio["assets"][ticker] = asset_config
 
 
 # =============================================================================
@@ -557,6 +660,7 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
             asset_events=asset_events,
             current_position=current_position,
             weights=weights,
+            asset_config=asset_config,
             fast_ma=fast_ma,
             slow_ma=slow_ma
         )

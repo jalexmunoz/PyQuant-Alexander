@@ -5,25 +5,41 @@
       "fast_ma": 10,
       "slow_ma": 100,
       "status": "active",
-      "weight": 0.4
+      "weight": 0.4,
+      "entry_price": 0.0,
+      "highest_close": 0.0,
+      "hard_stop_pct": 0.12,
+      "trailing_stop_pct": 0.10
     },
     "ETHUSDT": {
       "fast_ma": 30,
       "slow_ma": 150,
       "status": "active",
-      "weight": 0.4
+      "weight": 0.4,
+      "entry_price": 0.0,
+      "highest_close": 0.0,
+      "hard_stop_pct": 0.12,
+      "trailing_stop_pct": 0.10
     },
     "SOLUSDT": {
       "fast_ma": 10,
       "slow_ma": 50,
       "status": "active",
-      "weight": 0.15
+      "weight": 0.15,
+      "entry_price": 0.0,
+      "highest_close": 0.0,
+      "hard_stop_pct": 0.12,
+      "trailing_stop_pct": 0.10
     },
     "LINKUSDT": {
       "fast_ma": 20,
       "slow_ma": 100,
       "status": "active",
-      "weight": 0.05
+      "weight": 0.05,
+      "entry_price": 0.0,
+      "highest_close": 0.0,
+      "hard_stop_pct": 0.12,
+      "trailing_stop_pct": 0.10
     }
   },
   "positions": {
@@ -57,6 +73,6 @@
     "risk_on_threshold": 0.7,
     "risk_off_threshold": 0.3
   },
-  "last_updated": "2026-01-18T22:57:13.413260",
-  "notes": "Shadow mode - Day 018 - Optimized MA parameters per asset"
+  "last_updated": "2026-01-19T19:02:06.664350",
+  "notes": "Shadow mode - Day 019"
 }
