@@ -13,7 +13,7 @@ import logging
 import sys
 import argparse
 from pathlib import Path
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, timedelta
 from typing import Dict, List, Optional, Any
 from dotenv import load_dotenv
 
@@ -320,7 +320,8 @@ def process_asset_decision(
     weights: Dict[str, float],
     asset_config: Dict[str, Any],
     fast_ma: int = 50,
-    slow_ma: int = 200
+    slow_ma: int = 200,
+    previous_slow_ma: Optional[float] = None
 ) -> Dict[str, Any]:
     """
     Process decision logic for a single asset with Circuit Breaker protection.
@@ -413,12 +414,35 @@ def process_asset_decision(
     # REGULAR SIGNAL LOGIC
     # =========================================================================
     
-    # Check for cross ON event (BUY)
+    # Check for cross ON event (BUY) with Slope Filter
     cross_on = get_cross_event(asset_events, 'ON')
     if cross_on:
         if current_position["status"] == "OFF":
+            # Calculate Slow MA slope for trend filter
+            slow_sma_value = None
+            if snapshot:
+                slow_ma_key = f"sma{slow_ma}" if slow_ma != 200 else "sma200"
+                slow_sma_value = snapshot.get(slow_ma_key) or snapshot.get("sma200")
+            
+            # Apply Slope Filter: Only BUY if Slow MA is rising (slope > 0)
+            slope = None
+            if slow_sma_value and previous_slow_ma and previous_slow_ma > 0:
+                slope = (slow_sma_value - previous_slow_ma) / previous_slow_ma
+                decision["slope"] = slope
+            
+            # Check slope condition
+            if slope is not None and slope <= 0:
+                # Fast > Slow but Slow MA is not rising (lateral/falling market)
+                decision["action"] = "HOLD"
+                decision["reason"] = "⏳ WAITING FOR POSITIVE SLOPE"
+                decision["position"] = "OFF"
+                return decision
+            
+            # Slope is positive (or not available) - proceed with BUY
             decision["action"] = "BUY"
             decision["reason"] = f"SMA{fast_ma} crossed above SMA{slow_ma}"
+            if slope is not None:
+                decision["reason"] += f" (slope: {slope*100:.2f}%)"
             decision["position"] = "ON"
             # Use price from cross event or snapshot for entry
             entry_price = cross_on.get('price') or (snapshot.get('price') if snapshot else None)
@@ -614,18 +638,37 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
     date_str = target_date.strftime("%Y-%m-%d")
     events = get_events_by_date(date_str)
     
+    # Load previous day events for slope calculation
+    previous_date = target_date - timedelta(days=1)
+    previous_date_str = previous_date.strftime("%Y-%m-%d")
+    previous_events = get_events_by_date(previous_date_str)
+    
     if not events:
         logging.warning(f"No events found in Iron Vault for date: {date_str}")
         logging.info("💡 Tip: Events are stored in Supabase when webhooks are received")
     else:
         logging.info(f"📥 Cargados {len(events)} eventos desde Iron Vault (Supabase) para fecha: {date_str}")
     
-    # Extract snapshots from events
+    if previous_events:
+        logging.debug(f"📥 Cargados {len(previous_events)} eventos del día anterior ({previous_date_str}) para cálculo de pendiente")
+    
+    # Extract snapshots from events (current day)
     snapshot_data = {}
     for event in events:
         if event.get("event_type") == "daily_snapshot":
             ticker = event.get("ticker")
             snapshot_data[ticker] = {
+                "price": event.get("price"),
+                "sma50": event.get("sma50"),
+                "sma200": event.get("sma200")
+            }
+    
+    # Extract snapshots from previous day events for slope calculation
+    previous_snapshot_data = {}
+    for event in previous_events:
+        if event.get("event_type") == "daily_snapshot":
+            ticker = event.get("ticker")
+            previous_snapshot_data[ticker] = {
                 "price": event.get("price"),
                 "sma50": event.get("sma50"),
                 "sma200": event.get("sma200")
@@ -655,6 +698,13 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
         asset_events = filter_events_by_asset(events, ticker)
         current_position = portfolio["positions"][ticker]
         
+        # Get previous day Slow MA value for slope calculation
+        previous_slow_ma = None
+        previous_snapshot = previous_snapshot_data.get(ticker, {})
+        if previous_snapshot:
+            slow_ma_key = f"sma{slow_ma}" if slow_ma != 200 else "sma200"
+            previous_slow_ma = previous_snapshot.get(slow_ma_key) or previous_snapshot.get("sma200")
+        
         decision = process_asset_decision(
             ticker=ticker,
             asset_events=asset_events,
@@ -662,7 +712,8 @@ def run_shadow_mode(target_date: Optional[date] = None) -> None:
             weights=weights,
             asset_config=asset_config,
             fast_ma=fast_ma,
-            slow_ma=slow_ma
+            slow_ma=slow_ma,
+            previous_slow_ma=previous_slow_ma
         )
         
         decisions[ticker] = decision
