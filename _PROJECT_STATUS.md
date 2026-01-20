@@ -18,6 +18,10 @@ Sistema automatizado mediante Windows Task Scheduler. El script `run_shadow_mode
 
 Evaluación de rentabilidad histórica de la estrategia Golden Cross (SMA50/SMA200) usando datos de Yahoo Finance desde 2020.
 
+**Fase 5: Model Validation - Walk-Forward Testing - 🚀 EN PROGRESO**
+
+Validación de robustez de parámetros optimizados mediante walk-forward analysis. Divide datos en entrenamiento (2020-2023) y validación (2024-hoy) para detectar overfitting.
+
 ## 2. Arquitectura del Sistema
 
 - **Capa Base (Datos):** `utils/data_fetcher.py` (TradingView/Binance).
@@ -90,9 +94,15 @@ Evaluación de rentabilidad histórica de la estrategia Golden Cross (SMA50/SMA2
 - [x] Script de Optimización de Parámetros (`analysis/optimize_strategy.py`)
 - [x] Implementar parámetros dinámicos por activo (Configuración Optimizada)
 - [x] Trend Filter (Slope Analysis) implemented
-- [ ] Validación de resultados con datos históricos
+- [x] Walk-Forward Validation Test (`analysis/walk_forward_test.py`)
 - [ ] Comparación con estrategias benchmark
 - [ ] Análisis de drawdowns y métricas de riesgo
+
+### 🔬 Fase 5: Model Validation - Walk-Forward Testing - EN PROGRESO
+
+- [x] Script de Walk-Forward Validation creado
+- [ ] Validación de robustez de parámetros optimizados
+- [ ] Análisis de eficiencia entre entrenamiento y validación
 
 ## 5. Componentes Implementados
 
