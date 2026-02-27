@@ -1,0 +1,78 @@
+{
+  "equity_curve": 1.0,
+  "assets": {
+    "BTCUSDT": {
+      "fast_ma": 10,
+      "slow_ma": 100,
+      "status": "active",
+      "weight": 0.4,
+      "entry_price": 0.0,
+      "highest_close": 0.0,
+      "hard_stop_pct": 0.12,
+      "trailing_stop_pct": 0.10
+    },
+    "ETHUSDT": {
+      "fast_ma": 30,
+      "slow_ma": 150,
+      "status": "active",
+      "weight": 0.4,
+      "entry_price": 0.0,
+      "highest_close": 0.0,
+      "hard_stop_pct": 0.12,
+      "trailing_stop_pct": 0.10
+    },
+    "SOLUSDT": {
+      "fast_ma": 10,
+      "slow_ma": 50,
+      "status": "active",
+      "weight": 0.15,
+      "entry_price": 0.0,
+      "highest_close": 0.0,
+      "hard_stop_pct": 0.12,
+      "trailing_stop_pct": 0.10
+    },
+    "LINKUSDT": {
+      "fast_ma": 20,
+      "slow_ma": 100,
+      "status": "active",
+      "weight": 0.05,
+      "entry_price": 0.0,
+      "highest_close": 0.0,
+      "hard_stop_pct": 0.12,
+      "trailing_stop_pct": 0.10
+    }
+  },
+  "positions": {
+    "BTCUSDT": {
+      "status": "ON",
+      "entry_price": 95000,
+      "entry_date": "2026-01-19",
+      "weight": 0.4
+    },
+    "ETHUSDT": {
+      "status": "OFF",
+      "entry_price": null,
+      "entry_date": null,
+      "weight": 0.0
+    },
+    "SOLUSDT": {
+      "status": "OFF",
+      "entry_price": null,
+      "entry_date": null,
+      "weight": 0.0
+    },
+    "LINKUSDT": {
+      "status": "OFF",
+      "entry_price": null,
+      "entry_date": null,
+      "weight": 0.0
+    }
+  },
+  "global_settings": {
+    "commission_rate": 0.001,
+    "risk_on_threshold": 0.7,
+    "risk_off_threshold": 0.3
+  },
+  "last_updated": "2026-01-19T19:02:06.664350",
+  "notes": "Shadow mode - Day 019"
+}

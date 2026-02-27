@@ -35,4 +35,11 @@ __pycache__/
 
 # --- SISTEMA ---
 .DS_Store
-Thumbs.db
+Thumbs.db
+# Runtime outputs
+Output/
+utils/Output/
+
+# Local experiments / scratch
+utils/alex.py
+utils/config/
